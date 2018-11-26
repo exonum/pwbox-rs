@@ -19,7 +19,7 @@ use serde_json::{self, Error as JsonError, Value as JsonValue};
 use std::{any::TypeId, collections::HashMap, fmt};
 
 use utils::HexBytes;
-use {Cipher, CipherOutput, DeriveKey, Error, PwBox, PwBoxBuilder};
+use {Cipher, CipherOutput, DeriveKey, Error, PwBox, PwBoxBuilder, RestoredPwBox};
 
 /// Password-encrypted box suitable for (de)serialization.
 ///
@@ -128,6 +128,12 @@ impl fmt::Debug for Eraser {
             .field("ciphers", &self.ciphers.keys().collect::<Vec<_>>())
             .field("kdfs", &self.kdfs.keys().collect::<Vec<_>>())
             .finish()
+    }
+}
+
+impl Default for Eraser {
+    fn default() -> Self {
+        Eraser::new()
     }
 }
 
@@ -272,10 +278,7 @@ impl Eraser {
     }
 
     /// Restores a `PwBox` from the serialized form.
-    pub fn restore(
-        &self,
-        erased: &ErasedPwBox,
-    ) -> Result<PwBox<Box<dyn DeriveKey>, Box<dyn Cipher>>, Error> {
+    pub fn restore(&self, erased: &ErasedPwBox) -> Result<RestoredPwBox, Error> {
         let kdf_factory = self
             .kdfs
             .get(&erased.kdf)

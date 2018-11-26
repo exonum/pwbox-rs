@@ -80,7 +80,7 @@ impl DeriveKey for Scrypt {
     ) -> Result<(), Box<dyn Fail>> {
         derive_key(
             buf,
-            password.as_ref(),
+            password,
             &Salt::from_slice(salt).expect("invalid salt length"),
             OpsLimit(self.opslimit as usize),
             MemLimit(self.memlimit as usize),

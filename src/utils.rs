@@ -19,7 +19,7 @@ use std::fmt;
 pub enum HexBytes {}
 
 impl HexBytes {
-    pub fn serialize<S: Serializer>(value: &Vec<u8>, serializer: S) -> Result<S::Ok, S::Error> {
+    pub fn serialize<S: Serializer>(value: &[u8], serializer: S) -> Result<S::Ok, S::Error> {
         if serializer.is_human_readable() {
             serializer.serialize_str(&hex::encode(value))
         } else {
@@ -60,9 +60,10 @@ pub enum LogNTransform {}
 
 #[cfg(feature = "rust-crypto")]
 impl LogNTransform {
+    #[cfg_attr(feature = "cargo-clippy", allow(trivially_copy_pass_by_ref))]
     pub fn serialize<S: Serializer>(value: &u8, serializer: S) -> Result<S::Ok, S::Error> {
         assert!(*value < 32, "too large value to serialize: {}", value);
-        serializer.serialize_u64(1 << (*value as u64))
+        serializer.serialize_u64(1 << u64::from(*value))
     }
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<u8, D::Error>

@@ -296,6 +296,9 @@ pub struct PwBox<K, C> {
     cipher: C,
 }
 
+/// Password-encrypted box restored by `Eraser`.
+pub type RestoredPwBox = PwBox<Box<dyn DeriveKey>, Box<dyn Cipher>>;
+
 impl<K: DeriveKey + Default, C: Cipher + Default> PwBox<K, C> {
     /// Creates a new box by using default settings of the supplied KDF.
     pub fn new<R: RngCore + CryptoRng>(
