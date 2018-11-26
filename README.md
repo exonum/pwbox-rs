@@ -1,4 +1,4 @@
-# Modular password-based encryption and decryption for Rust
+# Modular password-based encryption for Rust
 
 `pwbox` crate provides utilities for password-based encryption together with
 corresponding composable cryptographic primitives. Using the crate, it is
