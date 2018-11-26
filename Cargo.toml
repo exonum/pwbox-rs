@@ -3,6 +3,9 @@ name = "pwbox"
 version = "0.1.0"
 authors = ["The Exonum Team <exonum@bitfury.com>"]
 license = "Apache-2.0"
+keywords = ["cryptography", "encryption", "password-based", "exonum"]
+categories = ["cryptography"]
+description = "Modular password-based encryption and decryption"
 
 [dependencies]
 rand_core = "=0.3.0"
