@@ -31,6 +31,11 @@ criterion = "=0.2.5"
 [features]
 default = ["exonum_sodiumoxide"]
 
+[[test]]
+name = "serialization"
+path = "tests/serialization.rs"
+required-features = ["rust-crypto", "exonum_sodiumoxide"]
+
 [[bench]]
 name = "eq"
 harness = false

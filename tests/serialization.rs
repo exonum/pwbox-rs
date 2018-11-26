@@ -16,15 +16,41 @@
 
 extern crate pwbox;
 extern crate serde;
+extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
 extern crate rand;
 extern crate toml;
 
-use pwbox::{sodium::Sodium, ErasedPwBox, Eraser, Suite};
+use pwbox::{rcrypto::RustCrypto, sodium::Sodium, ErasedPwBox, Eraser, Suite};
 use rand::{thread_rng, Rng};
 
 const PASSWORD: &str = "correct horse battery staple";
+
+#[test]
+fn json_serialization() {
+    // Taken from `go-ethereum` keystore test vectors:
+    // https://github.com/ethereum/go-ethereum/blob/2714e8f091117b4f110198008348bfc19233ed60/
+    //     accounts/keystore/testdata/keystore/aaa
+    const JSON: &str = r#"{
+        "cipher": "aes-128-ctr",
+        "ciphertext": "cb664472deacb41a2e995fa7f96fe29ce744471deb8d146a0e43c7898c9ddd4d",
+        "cipherparams": { "iv": "dfd9ee70812add5f4b8f89d0811c9158" },
+        "kdf": "scrypt",
+        "kdfparams": {
+            "dklen": 32, "n": 8, "p": 16, "r": 8,
+            "salt": "0d6769bf016d45c479213990d6a08d938469c4adad8a02ce507b4a4e7b7739f1"
+        },
+        "mac":"bac9af994b15a45dd39669fc66f9aa8a3b9dd8c22cb16e4d8d7ea089d0f1a1a9"
+    }"#;
+
+    const PASSWORD: &str = "foobar";
+
+    let mut eraser = Eraser::new();
+    eraser.add_suite::<RustCrypto>();
+    let erased: ErasedPwBox = serde_json::from_str(JSON).unwrap();
+    assert!(eraser.restore(&erased).unwrap().open(PASSWORD).is_ok());
+}
 
 #[test]
 fn toml_serialization() {
