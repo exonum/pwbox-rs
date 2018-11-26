@@ -15,6 +15,7 @@ env:
   global:
   - SODIUM_VERS=1.0.13
   - CARGO_INCREMENTAL=1
+  - DEADLINKS_VERS=0.3.0
 
 cache:
   directories:
@@ -39,6 +40,7 @@ before_install:
 - export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$HOME/.local/lib/pkgconfig
 
 install:
+- cargo deadlinks -V | grep $DEADLINKS_VERS || cargo install cargo-deadlinks --vers $DEADLINKS_VERS --force
 - rustup component add rustfmt-preview
 - rustfmt -V
 - rustup component add clippy-preview
@@ -50,3 +52,12 @@ script:
 - cargo clippy --all-features -- -D warnings
 - cargo test --tests --all-features
 - cargo test --doc --all-features
+- cargo clean --doc && cargo doc --all-features --no-deps && cargo deadlinks --dir target/doc
+
+deploy:
+  provider: pages
+  local-dir: target/doc
+  skip-cleanup: true
+  github-token: $GITHUB_TOKEN
+  on:
+    branch: master
