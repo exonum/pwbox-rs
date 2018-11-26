@@ -2,12 +2,14 @@
 
 #[macro_use]
 extern crate criterion;
+#[cfg(feature = "rust-crypto")]
 extern crate crypto as rcrypto;
+#[cfg(feature = "exonum_sodiumoxide")]
+extern crate exonum_sodiumoxide as sodiumoxide;
 extern crate rand;
 
 use criterion::{black_box, Bencher, Criterion, ParameterizedBenchmark};
 use rand::{thread_rng, RngCore};
-use rcrypto::util::fixed_time_eq as rcrypto_eq;
 
 const BUFFER_LEN: usize = 256;
 
@@ -61,8 +63,16 @@ fn bench_const_time_eq(bencher: &mut Bencher, &differing_byte: &usize) {
     bench_eq(bencher, differing_byte, const_time_eq);
 }
 
+#[cfg(feature = "rust-crypto")]
 fn bench_rcrypto_eq(bencher: &mut Bencher, &differing_byte: &usize) {
+    use rcrypto::util::fixed_time_eq as rcrypto_eq;
     bench_eq(bencher, differing_byte, rcrypto_eq);
+}
+
+#[cfg(feature = "exonum_sodiumoxide")]
+fn bench_sodium_eq(bencher: &mut Bencher, &differing_byte: &usize) {
+    use sodiumoxide::utils::memcmp;
+    bench_eq(bencher, differing_byte, memcmp);
 }
 
 fn eq_benches(c: &mut Criterion) {
@@ -85,9 +95,16 @@ fn eq_benches(c: &mut Criterion) {
         ParameterizedBenchmark::new("diff_byte", bench_const_time_eq, differing_byte.clone()),
     );
 
+    #[cfg(feature = "rust-crypto")]
     c.bench(
-        "rcrypto_eq",
+        "rust_crypto_eq",
         ParameterizedBenchmark::new("diff_byte", bench_rcrypto_eq, differing_byte.clone()),
+    );
+
+    #[cfg(feature = "exonum_sodiumoxide")]
+    c.bench(
+        "sodium_eq",
+        ParameterizedBenchmark::new("diff_byte", bench_sodium_eq, differing_byte.clone()),
     );
 }
 

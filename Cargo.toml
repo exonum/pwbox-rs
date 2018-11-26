@@ -25,7 +25,7 @@ toml = "0.4.9"
 criterion = "0.2.5"
 
 [features]
-default = ["exonum_sodiumoxide", "rust-crypto"]
+default = ["exonum_sodiumoxide"]
 
 [[bench]]
 name = "eq"
