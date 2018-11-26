@@ -11,6 +11,11 @@ branches:
 rust:
 - 1.30.0
 
+env:
+  global:
+  - SODIUM_VERS=1.0.13
+  - CARGO_INCREMENTAL=1
+
 cache:
   directories:
   - $HOME/.cargo
