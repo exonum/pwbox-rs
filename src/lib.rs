@@ -2,7 +2,7 @@
 //!
 //! # Overview
 //!
-//! This crate provides the container for **p**assword-**b**ased encryption, [`PwBox`],
+//! This crate provides the container for password-based encryption, [`PwBox`],
 //! which can be composed of [key derivation] and authenticated symmetric [`Cipher`] cryptographic
 //! primitives. In turn, authenticated symmetric ciphers can be composed from an
 //! [`UnauthenticatedCipher`] and a message authentication code ([`Mac`]).
@@ -24,6 +24,11 @@
 //! [`Sodium`]: sodium/enum.Sodium.html
 //! [`RustCrypto`]: rcrypto/enum.RustCrypto.html
 //! [`Eraser`]: struct.Eraser.html
+//!
+//! # Naming
+//!
+//! `PwBox` name was produced by combining two libsodium names: `pwhash` for password-based KDFs
+//! and `*box` for ciphers.
 //!
 //! # Examples
 //!
@@ -55,14 +60,15 @@
 //! # }
 //! ```
 
+#![deny(missing_docs, missing_debug_implementations)]
+
 extern crate clear_on_drop;
 #[macro_use]
 extern crate smallvec;
 extern crate failure;
-extern crate rand_core;
-#[macro_use]
 extern crate failure_derive;
 extern crate hex;
+extern crate rand_core;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
@@ -81,11 +87,12 @@ use rand_core::{CryptoRng, RngCore};
 use serde_json::Error as JsonError;
 use smallvec::SmallVec;
 
-use std::marker::PhantomData;
+use std::{fmt, marker::PhantomData};
 
 mod cipher_with_mac;
 mod erased;
 mod utils;
+
 // Crypto backends.
 #[cfg(feature = "rust-crypto")]
 pub mod rcrypto;
@@ -144,7 +151,9 @@ pub trait Cipher: 'static {
     ///
     /// # Safety
     ///
-    /// When used within `PwBox`, `key` and `nonce` are guaranteed to have correct sizes.
+    /// When used within [`PwBox`], `key` and `nonce` are guaranteed to have correct sizes.
+    ///
+    /// [`PwBox`]: struct.PwBox.html
     fn seal(&self, message: &[u8], nonce: &[u8], key: &[u8]) -> CipherOutput;
 
     /// Decrypts `encrypted` message with the provided `key` and `nonce`.
@@ -152,18 +161,21 @@ pub trait Cipher: 'static {
     ///
     /// # Safety
     ///
-    /// When used within `PwBox`, `key`, `nonce` and `encrypted.mac` are guaranteed to
+    /// When used within [`PwBox`], `key`, `nonce` and `encrypted.mac` are guaranteed to
     /// have correct sizes.
+    ///
+    /// [`PwBox`]: struct.PwBox.html
     fn open(&self, encrypted: &CipherOutput, nonce: &[u8], key: &[u8]) -> Option<Vec<u8>>;
 }
 
+/// Output of a `Cipher`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CipherOutput {
-    /// Encrypted data. Generally, has the same size as the original data.
+    /// Encrypted data. Has the same size as the original data.
     #[serde(with = "HexBytes")]
     pub ciphertext: Vec<u8>,
 
-    /// Message authentication code for the ciphertext.
+    /// Message authentication code for the `ciphertext`.
     #[serde(with = "HexBytes")]
     pub mac: Vec<u8>,
 }
@@ -190,26 +202,77 @@ impl Cipher for Box<dyn Cipher> {
     }
 }
 
+/// Errors occurring during `PwBox` operations.
 #[derive(Debug, Fail)]
 pub enum Error {
+    /// A cipher with the specified name is not registered.
+    ///
+    /// # Troubleshooting
+    ///
+    /// Register the cipher with the help of [`Eraser::add_cipher()`]
+    /// or [`Eraser::add_suite()`] methods.
+    ///
+    /// [`Eraser::add_cipher()`]: struct.Eraser.html#method.add_cipher
+    /// [`Eraser::add_suite()`]: struct.Eraser.html#method.add_suite
     #[fail(display = "unknown cipher: {}", _0)]
     NoCipher(String),
+
+    /// A key derivation function with the specified name is not registered.
+    ///
+    /// # Troubleshooting
+    ///
+    /// Register the cipher with the help of [`Eraser::add_kdf()`]
+    /// or [`Eraser::add_suite()`] methods.
+    ///
+    /// [`Eraser::add_kdf()`]: struct.Eraser.html#method.add_kdf
+    /// [`Eraser::add_suite()`]: struct.Eraser.html#method.add_suite
     #[fail(display = "unknown KDF: {}", _0)]
     NoKdf(String),
+
+    /// Failed to parse KDF parameters.
     #[fail(display = "failed to parse KDF parameters: {}", _0)]
     KdfParams(#[fail(cause)] JsonError),
+
+    /// Incorrect nonce length encountered.
+    ///
+    /// This error usually means that the box is corrupted.
     #[fail(display = "incorrect nonce length")]
     NonceLen,
+
+    /// Incorrect MAC length encountered.
+    ///
+    /// This error usually means that the box is corrupted.
     #[fail(display = "incorrect MAC length")]
     MacLen,
+
+    /// Incorrect salt length encountered.
+    ///
+    /// This error usually means that the box is corrupted.
     #[fail(display = "incorrect salt length")]
     SaltLen,
+
+    /// Failed to verify MAC code.
+    ///
+    /// This error means that either the supplied password is incorrect,
+    /// or the box is corrupted.
     #[fail(display = "incorrect password or corrupted box")]
     MacMismatch,
+
+    /// Error during KDF invocation.
+    ///
+    /// This error can arise if the KDF was supplied with invalid parameters,
+    /// which may lead or have led to a KDF-specific error (e.g., out-of-memory).
     #[fail(display = "error during key derivation: {}", _0)]
     DeriveKey(#[fail(cause)] Box<dyn Fail>),
 }
 
+/// Password-encrypted data.
+///
+/// # See also
+///
+/// See the crate docs for an example of usage. See [`ErasedPwBox`] for serialization details.
+///
+/// [`ErasedPwBox`]: struct.ErasedPwBox.html
 #[derive(Debug)]
 pub struct PwBox<K, C> {
     salt: Vec<u8>,
@@ -220,6 +283,7 @@ pub struct PwBox<K, C> {
 }
 
 impl<K: DeriveKey + Default, C: Cipher + Default> PwBox<K, C> {
+    /// Creates a new box by using default settings of the supplied KDF.
     pub fn new<R: RngCore + CryptoRng>(
         rng: &mut R,
         password: impl AsRef<[u8]>,
@@ -259,6 +323,7 @@ impl<K: DeriveKey, C: Cipher> PwBox<K, C> {
         })
     }
 
+    /// Decrypts the box and returns its contents.
     pub fn open(&self, password: impl AsRef<[u8]>) -> Result<Vec<u8>, Error> {
         let key_len = self.cipher.key_len();
 
@@ -275,10 +340,19 @@ impl<K: DeriveKey, C: Cipher> PwBox<K, C> {
     }
 }
 
+/// Builder for `PwBox`es.
 pub struct PwBoxBuilder<'a, K, C> {
     kdf: Option<K>,
     rng: &'a mut dyn RngCore,
     _cipher: PhantomData<C>,
+}
+
+impl<'a, K, C> fmt::Debug for PwBoxBuilder<'a, K, C> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("PwBoxBuilder")
+            .field("custom_kdf", &self.kdf.is_some())
+            .finish()
+    }
 }
 
 impl<'a, K, C> PwBoxBuilder<'a, K, C>
@@ -286,6 +360,7 @@ where
     K: DeriveKey + Clone + Default,
     C: Cipher + Default,
 {
+    /// Initializes the builder with a random number generator.
     pub fn new<R: RngCore + CryptoRng>(rng: &'a mut R) -> Self {
         PwBoxBuilder {
             kdf: None,
@@ -294,11 +369,13 @@ where
         }
     }
 
+    /// Sets up a custom KDF.
     pub fn kdf(&mut self, kdf: K) -> &mut Self {
         self.kdf = Some(kdf);
         self
     }
 
+    /// Creates a new `PwBox` with the specified password and contents.
     pub fn seal(
         &mut self,
         password: impl AsRef<[u8]>,
@@ -310,6 +387,7 @@ where
     }
 }
 
+// This function is used in testing cryptographic backends, so it's public intentionally.
 #[cfg(test)]
 #[doc(hidden)]
 pub fn test_kdf_and_cipher<K, C>(kdf: K)

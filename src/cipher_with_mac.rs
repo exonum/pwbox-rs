@@ -1,24 +1,48 @@
+//! Utilities for constructing `Cipher` from an unauthenticated symmetric cipher and a MAC.
+
 use std::marker::PhantomData;
 
 use {Cipher, CipherOutput};
 
 /// Symmetric cipher without built-in authentication.
 pub trait UnauthenticatedCipher: 'static {
+    /// Byte size of a key for this cipher.
     const KEY_LEN: usize;
+    /// Byte size of a nonce (aka initialization vector, IV) for this cipher.
     const NONCE_LEN: usize;
 
+    /// Encrypts or decrypts `message` in place, given the `nonce` and `key`.
+    ///
+    /// # Safety
+    ///
+    /// When used within [`PwBox`], `nonce` and `key` are guaranteed to have correct sizes.
+    ///
+    /// [`PwBox`]: struct.PwBox.html
     fn seal_or_open(message: &mut [u8], nonce: &[u8], key: &[u8]);
 }
 
 /// Message authentication code.
 pub trait Mac: 'static {
+    /// Byte size of a MAC key.
     const KEY_LEN: usize;
+    /// Byte size of the MAC output.
     const MAC_LEN: usize;
 
+    /// Digests a message under the specified key.
+    ///
+    /// The output of this method **must** have size `MAC_LEN`.
+    ///
+    /// # Safety
+    ///
+    /// When used within [`PwBox`], `key` is guaranteed to have the correct size.
     fn digest(key: &[u8], message: &[u8]) -> Vec<u8>;
 }
 
 /// Authenticated cipher constructed from an ordinary symmetric cipher and a MAC construction.
+///
+/// See [`Cipher` implementation] for details how this implementation works.
+///
+/// [`Cipher` implementation]: #impl-Cipher
 #[derive(Debug)]
 pub struct CipherWithMac<C, M> {
     _cipher: PhantomData<C>,
@@ -42,19 +66,6 @@ impl<C, M> Clone for CipherWithMac<C, M> {
 
 impl<C, M> Copy for CipherWithMac<C, M> {}
 
-impl<C, M> CipherWithMac<C, M>
-where
-    C: UnauthenticatedCipher,
-    M: Mac,
-{
-    pub fn new() -> Self {
-        CipherWithMac {
-            _cipher: PhantomData,
-            _mac: PhantomData,
-        }
-    }
-}
-
 #[cfg(feature = "exonum_sodiumoxide")]
 fn fixed_time_eq(lhs: &[u8], rhs: &[u8]) -> bool {
     extern crate exonum_sodiumoxide as sodiumoxide;
@@ -69,7 +80,8 @@ fn fixed_time_eq(lhs: &[u8], rhs: &[u8]) -> bool {
 
 // FIXME: This function *seems* to be constant-time (see the `eq` benchmark)
 // and is straightforward mapping of the technique used in `rust-crypto`.
-// However, whether it is actually secure, is not precisely clear.
+// However it's not precisely clear whether it is actually secure, so it's used as
+// a last resort.
 #[cfg(all(
     not(feature = "exonum_sodiumoxide"),
     not(feature = "rust-crypto")

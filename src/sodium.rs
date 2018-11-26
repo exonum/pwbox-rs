@@ -10,16 +10,27 @@ use self::sodiumoxide::crypto::{
 };
 use failure::Fail;
 
-use super::{Cipher, CipherOutput, DeriveKey};
-use erased::{Eraser, Suite};
+use super::{Cipher, CipherOutput, DeriveKey, Eraser, Suite};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// `Scrypt` key derivation function parameterized as per libsodium, i.e., via
+/// `opslimit` (computational hardness) and `memlimit` (RAM consumption).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Scrypt {
+    /// Parameter determining the computational hardness of the KDF.
+    ///
+    /// The default value is `1 << 19`.
     pub opslimit: u32,
+
+    /// Parameter determining the RAM consumption of the KDF. The value is approximately
+    /// equal to RAM volume in bytes, so, for example, the default value means memory consumption
+    /// ~16 MB.
+    ///
+    /// The default value is `1 << 24`.
     pub memlimit: u32,
 }
 
 impl Default for Scrypt {
+    /// Returns the "interactive" `scrypt` parameters as defined in libsodium.
     fn default() -> Self {
         Scrypt {
             opslimit: OPSLIMIT_INTERACTIVE.0 as u32,
@@ -29,6 +40,7 @@ impl Default for Scrypt {
 }
 
 impl Scrypt {
+    /// Returns "light" `scrypt` parameters as used in Ethereum keystore implementations.
     pub fn light() -> Self {
         Scrypt {
             opslimit: 3 << 18,
@@ -63,7 +75,8 @@ impl DeriveKey for Scrypt {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+/// `xsalsa20` symmetric cipher with `poly1305` MAC.
+#[derive(Debug, Clone, Copy, Default)]
 pub struct XSalsa20Poly1305;
 
 impl Cipher for XSalsa20Poly1305 {
@@ -103,20 +116,19 @@ impl Cipher for XSalsa20Poly1305 {
     }
 }
 
-#[test]
-fn basics() {
-    use rand::thread_rng;
-    use PwBox;
-
-    const PASSWORD: &str = "correct horse battery staple";
-    const MESSAGE: &[u8] = b"foobar";
-
-    let pwbox =
-        PwBox::<Scrypt, XSalsa20Poly1305>::new(&mut thread_rng(), PASSWORD, MESSAGE).unwrap();
-
-    assert_eq!(pwbox.open(PASSWORD).expect("pwbox.open"), MESSAGE.to_vec());
-}
-
+/// Suite for password-based encryption provided by `libsodium`.
+///
+/// # Ciphers
+///
+/// - `xsalsa20-poly1305`: XSalsa20 stream cipher with Poly1305 MAC
+///
+/// # KDFs
+///
+/// - `scrypt-nacl`: `scrypt` KDF with the `libsodium` parametrization.
+///
+/// # Examples
+///
+/// See crate-level docs for the example of usage.
 #[derive(Debug)]
 pub enum Sodium {}
 
@@ -135,6 +147,20 @@ impl Suite for Sodium {
 mod tests {
     use super::*;
     use {erased::test_kdf_and_cipher_corruption, test_kdf_and_cipher};
+
+    #[test]
+    fn basics() {
+        use rand::thread_rng;
+        use PwBox;
+
+        const PASSWORD: &str = "correct horse battery staple";
+        const MESSAGE: &[u8] = b"foobar";
+
+        let pwbox =
+            PwBox::<Scrypt, XSalsa20Poly1305>::new(&mut thread_rng(), PASSWORD, MESSAGE).unwrap();
+
+        assert_eq!(pwbox.open(PASSWORD).expect("pwbox.open"), MESSAGE.to_vec());
+    }
 
     #[test]
     fn scrypt_and_salsa() {

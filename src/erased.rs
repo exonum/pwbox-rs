@@ -2,7 +2,7 @@ use rand_core::{CryptoRng, RngCore};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{self, Error as JsonError, Value as JsonValue};
 
-use std::{any::TypeId, collections::HashMap};
+use std::{any::TypeId, collections::HashMap, fmt};
 
 use utils::HexBytes;
 use {Cipher, CipherOutput, DeriveKey, Error, PwBox, PwBoxBuilder};
@@ -67,6 +67,35 @@ struct CipherParams {
 type CipherFactory = Box<dyn Fn() -> Box<dyn Cipher>>;
 type KdfFactory = Box<dyn Fn(JsonValue) -> Result<Box<dyn DeriveKey>, JsonError>>;
 
+/// Helper structure to convert password-encrypted boxes to a serializable format and back.
+///
+/// # Examples
+///
+/// ```
+/// # extern crate pwbox;
+/// # extern crate rand;
+/// # use rand::thread_rng;
+/// # use pwbox::{Eraser, Suite,
+/// #     rcrypto::{Scrypt as SomeKdf, Aes128Gcm as SomeCipher},
+/// #     sodium::Sodium as SomeSuite};
+/// let mut eraser = Eraser::new();
+/// // Register separate KDFs and ciphers
+/// eraser.add_kdf::<SomeKdf>("some-kdf");
+/// eraser.add_cipher::<SomeCipher>("some-cipher");
+/// // Add a suite.
+/// eraser.add_suite::<SomeSuite>();
+///
+/// // Erase a `PwBox`.
+/// let pwbox = SomeSuite::build_box(&mut thread_rng())
+///     .seal("password", b"some data")
+///     .unwrap();
+/// let erased = eraser.erase(pwbox).unwrap();
+/// // `erased` can now be serialized somewhere, e.g., in JSON format.
+///
+/// // Restore a `PwBox`.
+/// let restored = eraser.restore(&erased).unwrap();
+/// assert_eq!(restored.open("password").unwrap(), b"some data");
+/// ```
 pub struct Eraser {
     ciphers: HashMap<String, CipherFactory>,
     kdfs: HashMap<String, KdfFactory>,
@@ -74,7 +103,17 @@ pub struct Eraser {
     kdf_names: HashMap<TypeId, String>,
 }
 
+impl fmt::Debug for Eraser {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Eraser")
+            .field("ciphers", &self.ciphers.keys().collect::<Vec<_>>())
+            .field("kdfs", &self.kdfs.keys().collect::<Vec<_>>())
+            .finish()
+    }
+}
+
 impl Eraser {
+    /// Creates an `Eraser` with no ciphers or KDFs.
     pub fn new() -> Self {
         Eraser {
             ciphers: HashMap::new(),
@@ -84,6 +123,12 @@ impl Eraser {
         }
     }
 
+    /// Adds a cipher.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the cipher is already registered under a different name, or if `cipher_name`
+    /// is already registered.
     pub fn add_cipher<C>(&mut self, cipher_name: &str) -> &mut Self
     where
         C: Cipher + Default,
@@ -109,6 +154,12 @@ impl Eraser {
         self
     }
 
+    /// Adds a key derivation function.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the KDF is already registered under a different name, or if `kdf_name`
+    /// is already registered.
     pub fn add_kdf<K>(&mut self, kdf_name: &str) -> &mut Self
     where
         K: DeriveKey + DeserializeOwned + Default,
@@ -136,6 +187,13 @@ impl Eraser {
         self
     }
 
+    /// Adds all KDFs and ciphers from the specified `Suite`.
+    ///
+    /// # Panics
+    ///
+    /// This method panics if any KDF or cipher in the suite (or its name)
+    /// have been registered previously. A panic is also raised if the suite
+    /// has not registered its recommended cipher or KDF.
     pub fn add_suite<S: Suite>(&mut self) -> &mut Self {
         S::add_ciphers_and_kdfs(self);
         assert!(
@@ -163,6 +221,7 @@ impl Eraser {
         self.kdf_names.get(&TypeId::of::<K>())
     }
 
+    /// Converts a `pwbox` into serializable form.
     pub fn erase<K, C>(&self, pwbox: PwBox<K, C>) -> Result<ErasedPwBox, PwBox<K, C>>
     where
         K: DeriveKey + Serialize,
@@ -193,6 +252,7 @@ impl Eraser {
         })
     }
 
+    /// Restores a `PwBox` from the serialized form.
     pub fn restore(
         &self,
         erased: &ErasedPwBox,
@@ -228,21 +288,25 @@ impl Eraser {
     }
 }
 
+/// Cryptographic suite providing ciphers and KDFs for password-based encryption.
 pub trait Suite {
     /// Recommended cipher for this suite.
     type Cipher: Cipher + Clone + Default;
     /// Recommended KDF for this suite.
     type DeriveKey: DeriveKey + Clone + Default;
 
+    /// Initializes a `PwBoxBuilder` with the recommended cipher and KDF.
     fn build_box<R: RngCore + CryptoRng>(
         rng: &mut R,
     ) -> PwBoxBuilder<Self::DeriveKey, Self::Cipher> {
         PwBoxBuilder::new(rng)
     }
 
+    /// Adds ciphers and KDFs from this suite into the specified `Eraser`.
     fn add_ciphers_and_kdfs(eraser: &mut Eraser);
 }
 
+// This function is used in testing cryptographic backends, so it's public intentionally.
 #[cfg(test)]
 #[doc(hidden)]
 pub fn test_kdf_and_cipher_corruption<K, C>(kdf: K)
@@ -334,6 +398,7 @@ where
     assert_matches!(restored.open(&password).unwrap_err(), Error::MacMismatch);
 }
 
+#[cfg(feature = "exonum_sodiumoxide")]
 #[test]
 fn erase_pwbox() {
     use rand::thread_rng;

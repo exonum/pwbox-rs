@@ -1,3 +1,5 @@
+//! `rust-crypto` cryptographic backend.
+
 extern crate crypto as rcrypto;
 
 use self::rcrypto::{
@@ -50,7 +52,10 @@ impl UnauthenticatedCipher for Aes128Ctr {
 /// This construction is only secure because hash functions from Keccak/SHA-3 family
 /// are resistant to [length extension] attacks. Implementing a similar construction based
 /// on functions from the SHA-2 family or other hash functions susceptible to length extension
-/// attacks would not be secure; use [HMAC] instead.
+/// attacks is **not secure**; use an [HMAC] instead.
+///
+/// [length extension]: https://en.wikipedia.org/wiki/Length_extension_attack
+/// [HMAC]: https://en.wikipedia.org/wiki/HMAC
 #[derive(Debug)]
 pub enum Keccak256 {}
 
@@ -72,7 +77,7 @@ impl Mac for Keccak256 {
 ///
 /// # Serialization
 ///
-/// The function is serialized as three fields: `n`, `r` and `p`. See the Scrypt paper
+/// The function is serialized as three fields: `n`, `r` and `p`. See the [Scrypt paper]
 /// for more details on what they mean.
 ///
 /// ```
@@ -86,6 +91,8 @@ impl Mac for Keccak256 {
 ///     json!({ "n": 262144, "r": 8, "p": 1 })
 /// );
 /// ```
+///
+/// [Scrypt paper]: http://www.tarsnap.com/scrypt/scrypt.pdf
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Scrypt {
     #[serde(rename = "n", with = "LogNTransform")]
@@ -123,6 +130,10 @@ impl Scrypt {
         }
     }
 
+    /// Creates custom parameters for scrypt KDF.
+    ///
+    /// The `r` parameter is always set to 8 as per libsodium conversion
+    /// from `opslimit` / `memlimit` and per Ethereum keystore implementations.
     pub fn custom(log_n: u8, p: u32) -> Self {
         Scrypt { log_n, p, r: 8 }
     }
@@ -146,6 +157,11 @@ impl DeriveKey for Scrypt {
 }
 
 /// AES-128 cipher in GCM mode.
+///
+/// # Implementation note
+///
+/// The GCM mode allows authenticating public data in addition to the ciphertext;
+/// for this application, this additional data is an empty slice `&[]`.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Aes128Gcm;
 
@@ -183,7 +199,7 @@ impl Cipher for Aes128Gcm {
     }
 }
 
-/// Suite provided by `rust-crypto`.
+/// Suite for password-based encryption provided by `rust-crypto`.
 ///
 /// # Ciphers
 ///
@@ -253,7 +269,7 @@ mod tests {
         const MESSAGE: &[u8] = b"battery staple";
 
         let mut rng = thread_rng();
-        let cipher = CipherWithMac::<Aes128Ctr, Keccak256>::new();
+        let cipher = CipherWithMac::<Aes128Ctr, Keccak256>::default();
         let mut key = vec![0; cipher.key_len()];
         rng.fill_bytes(&mut key);
         let mut nonce = vec![0; cipher.nonce_len()];

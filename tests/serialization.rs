@@ -1,3 +1,5 @@
+//! Test suite for different supported serialization formats.
+
 extern crate pwbox;
 extern crate serde;
 #[macro_use]
