@@ -1,7 +1,8 @@
 [package]
 name = "pwbox"
 version = "0.1.0"
-authors = ["Alex Ostrovski <ostrovski.alex@gmail.com>"]
+authors = ["The Exonum Team <exonum@bitfury.com>"]
+license = "Apache-2.0"
 
 [dependencies]
 rand_core = "=0.3.0"
