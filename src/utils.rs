@@ -16,45 +16,6 @@ use serde::{de::Visitor, Deserializer, Serializer};
 
 use std::fmt;
 
-pub enum HexBytes {}
-
-impl HexBytes {
-    pub fn serialize<S: Serializer>(value: &[u8], serializer: S) -> Result<S::Ok, S::Error> {
-        if serializer.is_human_readable() {
-            serializer.serialize_str(&hex::encode(value))
-        } else {
-            serializer.serialize_bytes(value)
-        }
-    }
-
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        use serde::de::Error as DeError;
-
-        struct HexVisitor;
-
-        impl<'de> Visitor<'de> for HexVisitor {
-            type Value = Vec<u8>;
-
-            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                f.write_str("hex-encoded byte array")
-            }
-
-            fn visit_str<E: DeError>(self, value: &str) -> Result<Self::Value, E> {
-                hex::decode(value).map_err(E::custom)
-            }
-
-            fn visit_bytes<E: DeError>(self, value: &[u8]) -> Result<Self::Value, E> {
-                hex::decode(value).map_err(E::custom)
-            }
-        }
-
-        deserializer.deserialize_str(HexVisitor)
-    }
-}
-
 #[cfg(feature = "rust-crypto")]
 pub enum LogNTransform {}
 

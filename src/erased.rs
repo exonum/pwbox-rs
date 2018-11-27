@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use hex_buffer_serde::{Hex as Hex_, HexForm};
 use rand_core::{CryptoRng, RngCore};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{self, Error as JsonError, Value as JsonValue};
@@ -66,7 +67,7 @@ pub struct ErasedPwBox {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct KdfParams {
-    #[serde(with = "HexBytes")]
+    #[serde(with = "HexForm::<Vec<u8>>")]
     salt: Vec<u8>,
     #[serde(flatten)]
     inner: JsonValue,
@@ -74,7 +75,7 @@ struct KdfParams {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct CipherParams {
-    #[serde(with = "HexBytes")]
+    #[serde(with = "HexForm::<Vec<u8>>")]
     iv: Vec<u8>,
 }
 

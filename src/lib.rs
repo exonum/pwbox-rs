@@ -81,12 +81,12 @@ extern crate clear_on_drop;
 extern crate smallvec;
 extern crate failure;
 extern crate failure_derive;
-extern crate hex;
 extern crate rand_core;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
+extern crate hex_buffer_serde;
 
 // Crates for testing.
 #[cfg(test)]
@@ -97,6 +97,7 @@ extern crate assert_matches;
 
 use clear_on_drop::ClearOnDrop;
 use failure::Fail;
+use hex_buffer_serde::{Hex as _Hex, HexForm};
 use rand_core::{CryptoRng, RngCore};
 use serde_json::Error as JsonError;
 use smallvec::SmallVec;
