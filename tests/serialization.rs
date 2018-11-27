@@ -28,10 +28,10 @@ use rand::{thread_rng, Rng};
 const PASSWORD: &str = "correct horse battery staple";
 
 #[test]
-fn json_serialization() {
+fn json_serialization_compatibility() {
     // Taken from `go-ethereum` keystore test vectors:
-    // https://github.com/ethereum/go-ethereum/blob/2714e8f091117b4f110198008348bfc19233ed60/
-    //     accounts/keystore/testdata/keystore/aaa
+    // <https://github.com/ethereum/go-ethereum/blob/2714e8f091117b4f110198008348bfc19233ed60/
+    //     accounts/keystore/testdata/keystore/aaa>
     const JSON: &str = r#"{
         "cipher": "aes-128-ctr",
         "ciphertext": "cb664472deacb41a2e995fa7f96fe29ce744471deb8d146a0e43c7898c9ddd4d",
@@ -41,7 +41,7 @@ fn json_serialization() {
             "dklen": 32, "n": 8, "p": 16, "r": 8,
             "salt": "0d6769bf016d45c479213990d6a08d938469c4adad8a02ce507b4a4e7b7739f1"
         },
-        "mac":"bac9af994b15a45dd39669fc66f9aa8a3b9dd8c22cb16e4d8d7ea089d0f1a1a9"
+        "mac": "bac9af994b15a45dd39669fc66f9aa8a3b9dd8c22cb16e4d8d7ea089d0f1a1a9"
     }"#;
 
     const PASSWORD: &str = "foobar";
@@ -65,7 +65,7 @@ fn toml_serialization() {
     let s = toml::to_string_pretty(&encrypted).unwrap();
     let restored = toml::from_str(&s).unwrap();
     let restored = eraser.restore(&restored).unwrap();
-    assert_eq!(restored.open(PASSWORD).unwrap(), secret);
+    assert_eq!(secret, &*restored.open(PASSWORD).unwrap());
 }
 
 #[test]
@@ -103,7 +103,7 @@ fn toml_deserialization_inner() {
             Ok(Test {
                 some_data: self.some_data,
                 other_data: self.other_data,
-                key: eraser.restore(&self.key)?.open(password)?,
+                key: eraser.restore(&self.key)?.open(password)?.to_vec(),
             })
         }
     }

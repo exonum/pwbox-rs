@@ -160,17 +160,18 @@ where
     /// 2. Compute MAC over the ciphertext with `mac_key`. If MAC is not equal to
     ///   the supplied one, return `None`.
     /// 3. Decrypt the ciphertext under the `cipher_key` and `nonce`.
-    fn open(&self, enc: &CipherOutput, nonce: &[u8], key: &[u8]) -> Option<Vec<u8>> {
+    fn open(&self, enc: &CipherOutput, nonce: &[u8], key: &[u8], output: &mut [u8]) -> Result<(), ()> {
         debug_assert_eq!(key.len(), self.key_len());
         debug_assert_eq!(enc.mac.len(), M::MAC_LEN);
+        debug_assert_eq!(output.len(), enc.ciphertext.len());
 
         let (cipher_key, mac_key) = (&key[..C::KEY_LEN], &key[C::KEY_LEN..]);
         if !fixed_time_eq(&M::digest(mac_key, &enc.ciphertext), &enc.mac) {
-            return None;
+            return Err(());
         }
 
-        let mut plaintext = enc.ciphertext.to_vec();
-        C::seal_or_open(&mut plaintext, nonce, cipher_key);
-        Some(plaintext)
+        output.copy_from_slice(&enc.ciphertext);
+        C::seal_or_open(output, nonce, cipher_key);
+        Ok(())
     }
 }

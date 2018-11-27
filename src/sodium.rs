@@ -118,15 +118,13 @@ impl Cipher for XSalsa20Poly1305 {
         }
     }
 
-    fn open(&self, enc: &CipherOutput, nonce: &[u8], key: &[u8]) -> Option<Vec<u8>> {
+    fn open(&self, enc: &CipherOutput, nonce: &[u8], key: &[u8], output: &mut [u8]) -> Result<(), ()> {
         let nonce = Nonce::from_slice(nonce).expect("invalid nonce length");
         let key = Key::from_slice(key).expect("invalid key length");
         let mac = Tag::from_slice(&enc.mac).expect("invalid MAC length");
-        let mut message = enc.ciphertext.clone();
 
-        open_detached(&mut message, &mac, &nonce, &key)
-            .map(|()| message)
-            .ok()
+        output.copy_from_slice(&enc.ciphertext);
+        open_detached(output, &mac, &nonce, &key)
     }
 }
 
@@ -173,7 +171,7 @@ mod tests {
         let pwbox =
             PwBox::<Scrypt, XSalsa20Poly1305>::new(&mut thread_rng(), PASSWORD, MESSAGE).unwrap();
 
-        assert_eq!(pwbox.open(PASSWORD).expect("pwbox.open"), MESSAGE.to_vec());
+        assert_eq!(MESSAGE, &*pwbox.open(PASSWORD).unwrap());
     }
 
     #[test]

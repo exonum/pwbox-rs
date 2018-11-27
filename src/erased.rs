@@ -19,7 +19,6 @@ use serde_json::{self, Error as JsonError, Value as JsonValue};
 
 use std::{any::TypeId, collections::HashMap, fmt};
 
-use utils::HexBytes;
 use {Cipher, CipherOutput, DeriveKey, Error, PwBox, PwBoxBuilder, RestoredPwBox};
 
 /// Password-encrypted box suitable for (de)serialization.
@@ -63,6 +62,13 @@ pub struct ErasedPwBox {
     kdf_params: KdfParams,
     #[serde(rename = "cipherparams")]
     cipher_params: CipherParams,
+}
+
+impl ErasedPwBox {
+    /// Returns the byte size of the encrypted data stored in this box.
+    pub fn len(&self) -> usize {
+        self.encrypted.ciphertext.len()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -440,5 +446,5 @@ fn erase_pwbox() {
 
     let erased = eraser.erase(pwbox).unwrap();
     let pwbox_copy = eraser.restore(&erased).unwrap();
-    assert_eq!(pwbox_copy.open(PASSWORD).unwrap(), MESSAGE.to_vec());
+    assert_eq!(MESSAGE, &*pwbox_copy.open(PASSWORD).unwrap());
 }

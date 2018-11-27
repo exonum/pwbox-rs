@@ -201,14 +201,13 @@ impl Cipher for Aes128Gcm {
         CipherOutput { ciphertext, mac }
     }
 
-    fn open(&self, enc: &CipherOutput, nonce: &[u8], key: &[u8]) -> Option<Vec<u8>> {
+    fn open(&self, enc: &CipherOutput, nonce: &[u8], key: &[u8], output: &mut [u8]) -> Result<(), ()> {
         let mut cipher = aes_gcm::AesGcm::new(aes::KeySize::KeySize128, key, nonce, &[]);
-        let mut plaintext = vec![0_u8; enc.ciphertext.len()];
 
-        if cipher.decrypt(&enc.ciphertext, &mut plaintext, &enc.mac) {
-            Some(plaintext)
+        if cipher.decrypt(&enc.ciphertext, output, &enc.mac) {
+            Ok(())
         } else {
-            None
+            Err(())
         }
     }
 }
@@ -248,7 +247,7 @@ impl Cipher for Aes128Gcm {
 /// let erased: ErasedPwBox = // deserialized from some format
 /// #   eraser.erase(pwbox).unwrap();
 /// let plaintext = eraser.restore(&erased)?.open(b"correct horse")?;
-/// # assert_eq!(plaintext, b"battery staple");
+/// # assert_eq!(&*plaintext, b"battery staple");
 /// # Ok(())
 /// # }
 /// ```
@@ -290,13 +289,14 @@ mod tests {
         rng.fill_bytes(&mut nonce);
 
         let mut sealed = cipher.seal(MESSAGE, &nonce, &key);
-        assert_eq!(
-            cipher.open(&sealed, &nonce, &key).unwrap(),
-            MESSAGE.to_vec()
-        );
+        let mut plaintext = vec![0; MESSAGE.len()];
+        cipher.open(&sealed, &nonce, &key, &mut plaintext).unwrap();
+        assert_eq!(&*plaintext, MESSAGE);
+
         // Corrupt MAC.
         sealed.mac[0] ^= 1;
-        assert!(cipher.open(&sealed, &nonce, &key).is_none());
+        let mut plaintext = vec![0; MESSAGE.len()];
+        assert!(cipher.open(&sealed, &nonce, &key, &mut plaintext).is_err());
     }
 
     // `rust-crypto` is quite slow in debug mode, so we use *very* easy parameters here
@@ -343,12 +343,13 @@ mod tests {
 
         let erased = eraser.erase(pwbox).unwrap();
         let pwbox_copy = eraser.restore(&erased).unwrap();
-        assert_eq!(pwbox_copy.open(PASSWORD).unwrap(), MESSAGE.to_vec());
+        assert_eq!(MESSAGE, &*pwbox_copy.open(PASSWORD).unwrap());
     }
 
     #[test]
     fn ethstore_compatibility() {
-        use {hex, serde_json};
+        extern crate hex;
+        use serde_json;
 
         const PASSWORD: &str = "foo";
         const MESSAGE_HEX: &str = "fa7b3db73dc7dfdf8c5fbdb796d741e4488628c41fc4febd9160a866ba0f35";
@@ -375,6 +376,6 @@ mod tests {
         let message = hex::decode(MESSAGE_HEX).unwrap();
         let erased: ErasedPwBox = serde_json::from_str(&PWBOX).unwrap();
         let pwbox = eraser.restore(&erased).unwrap();
-        assert_eq!(pwbox.open(PASSWORD).unwrap(), message);
+        assert_eq!(message, &*pwbox.open(PASSWORD).unwrap());
     }
 }

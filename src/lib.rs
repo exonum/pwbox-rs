@@ -47,6 +47,7 @@
 //! # Examples
 //!
 //! Using the `Sodium` cryptosuite:
+//!
 //! ```
 //! # extern crate rand;
 //! # extern crate pwbox;
@@ -69,7 +70,7 @@
 //! println!("{}", serde_json::to_string_pretty(&erased).unwrap());
 //! // Deserialize box back.
 //! let plaintext = eraser.restore(&erased)?.open(b"correct horse")?;
-//! assert_eq!(plaintext, b"battery staple");
+//! assert_eq!(&*plaintext, b"battery staple");
 //! # Ok(())
 //! # }
 //! ```
@@ -102,7 +103,7 @@ use rand_core::{CryptoRng, RngCore};
 use serde_json::Error as JsonError;
 use smallvec::SmallVec;
 
-use std::{fmt, marker::PhantomData};
+use std::{fmt, marker::PhantomData, ops::Deref};
 
 mod cipher_with_mac;
 mod erased;
@@ -117,12 +118,39 @@ pub mod sodium;
 pub use cipher_with_mac::{CipherWithMac, Mac, UnauthenticatedCipher};
 pub use erased::{ErasedPwBox, Eraser, Suite};
 
-use utils::HexBytes;
-
 /// Expected upper bound on byte buffers created during encryption / decryption.
 const BUFFER_SIZE: usize = 128;
 
-type SensitiveData = SmallVec<[u8; BUFFER_SIZE]>;
+/// TODO
+#[derive(Clone)]
+pub struct SensitiveData(SmallVec<[u8; BUFFER_SIZE]>);
+
+impl SensitiveData {
+    fn zeros(len: usize) -> Self {
+        SensitiveData(smallvec![0; len])
+    }
+}
+
+impl fmt::Debug for SensitiveData {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_tuple("SensitiveData").field(&"_").finish()
+    }
+}
+
+impl Deref for SensitiveData {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &*self.0
+    }
+}
+
+impl Drop for SensitiveData {
+    fn drop(&mut self) {
+        let handle = ClearOnDrop::new(&mut self.0);
+        drop(handle); // this is where bytes are cleared
+    }
+}
 
 /// Key derivation function.
 pub trait DeriveKey: 'static {
@@ -171,27 +199,27 @@ pub trait Cipher: 'static {
     /// [`PwBox`]: struct.PwBox.html
     fn seal(&self, message: &[u8], nonce: &[u8], key: &[u8]) -> CipherOutput;
 
-    /// Decrypts `encrypted` message with the provided `key` and `nonce`.
-    /// If MAC does not verify, outputs `None`.
+    /// Decrypts `encrypted` message with the provided `key` and `nonce` and stores
+    /// the result into `output`. If the MAC does not verify, returns an error.
     ///
     /// # Safety
     ///
-    /// When used within [`PwBox`], `key`, `nonce` and `encrypted.mac` are guaranteed to
+    /// When used within [`PwBox`], `key`, `nonce`, `encrypted.mac` and `output` are guaranteed to
     /// have correct sizes.
     ///
     /// [`PwBox`]: struct.PwBox.html
-    fn open(&self, encrypted: &CipherOutput, nonce: &[u8], key: &[u8]) -> Option<Vec<u8>>;
+    fn open(&self, encrypted: &CipherOutput, nonce: &[u8], key: &[u8], output: &mut [u8]) -> Result<(), ()>;
 }
 
 /// Output of a `Cipher`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CipherOutput {
     /// Encrypted data. Has the same size as the original data.
-    #[serde(with = "HexBytes")]
+    #[serde(with = "HexForm::<Vec<u8>>")]
     pub ciphertext: Vec<u8>,
 
     /// Message authentication code for the `ciphertext`.
-    #[serde(with = "HexBytes")]
+    #[serde(with = "HexForm::<Vec<u8>>")]
     pub mac: Vec<u8>,
 }
 
@@ -212,8 +240,8 @@ impl Cipher for Box<dyn Cipher> {
         (**self).seal(message, nonce, key)
     }
 
-    fn open(&self, enc: &CipherOutput, nonce: &[u8], key: &[u8]) -> Option<Vec<u8>> {
-        (**self).open(enc, nonce, key)
+    fn open(&self, enc: &CipherOutput, nonce: &[u8], key: &[u8], output: &mut [u8]) -> Result<(), ()> {
+        (**self).open(enc, nonce, key, output)
     }
 }
 
@@ -321,17 +349,16 @@ impl<K: DeriveKey, C: Cipher> PwBox<K, C> {
         message: impl AsRef<[u8]>,
     ) -> Result<Self, Box<dyn Fail>> {
         // Create salt and nonce from RNG.
-        let mut salt: SensitiveData = smallvec![0; kdf.salt_len()];
-        rng.fill_bytes(&mut *salt);
-        let mut nonce: SensitiveData = smallvec![0; cipher.nonce_len()];
-        rng.fill_bytes(&mut *nonce);
+        let mut salt = SensitiveData::zeros(kdf.salt_len());
+        rng.fill_bytes(&mut *salt.0);
+        let mut nonce = SensitiveData::zeros(cipher.nonce_len());
+        rng.fill_bytes(&mut *nonce.0);
 
         // Derive key from password and salt.
-        let mut key: SensitiveData = smallvec![0; cipher.key_len()];
-        let mut key = ClearOnDrop::new(&mut key);
-        kdf.derive_key(password.as_ref(), &*salt, &mut **key)?;
+        let mut key = SensitiveData::zeros(cipher.key_len());
+        kdf.derive_key(password.as_ref(), &*salt, &mut *key.0)?;
 
-        let encrypted = cipher.seal(message.as_ref(), &*nonce, &**key);
+        let encrypted = cipher.seal(message.as_ref(), &*nonce, &*key);
         Ok(PwBox {
             salt: salt[..].to_vec(),
             nonce: nonce[..].to_vec(),
@@ -341,20 +368,40 @@ impl<K: DeriveKey, C: Cipher> PwBox<K, C> {
         })
     }
 
-    /// Decrypts the box and returns its contents.
-    pub fn open(&self, password: impl AsRef<[u8]>) -> Result<Vec<u8>, Error> {
+    /// Returns the byte size of the encrypted data stored in this box.
+    pub fn len(&self) -> usize {
+        self.encrypted.ciphertext.len()
+    }
+
+    /// Decrypts the box into the specified container.
+    ///
+    /// This method should be preferred to `open()` if the `output` type implements
+    /// zeroing on drop (e.g., cryptographic secrets from `sodiumoxide`).
+    pub fn open_into(&self, password: impl AsRef<[u8]>, mut output: impl AsMut<[u8]>) -> Result<(), Error> {
+        assert_eq!(
+            output.as_mut().len(),
+            self.len(),
+            "please check `PwBox::len()` and provide output of fitting size"
+        );
+
         let key_len = self.cipher.key_len();
 
         // Derive key from password and salt.
-        let mut key: SensitiveData = smallvec![0; key_len];
-        let mut key = ClearOnDrop::new(&mut key);
+        let mut key = SensitiveData::zeros(key_len);
         self.kdf
-            .derive_key(password.as_ref(), &self.salt, &mut **key)
+            .derive_key(password.as_ref(), &self.salt, &mut *key.0)
             .map_err(Error::DeriveKey)?;
 
         self.cipher
-            .open(&self.encrypted, &self.nonce, &**key)
-            .ok_or(Error::MacMismatch)
+            .open(&self.encrypted, &self.nonce, &*key, output.as_mut())
+            .map_err(|()| Error::MacMismatch)
+    }
+
+    /// Decrypts the box and returns its contents. The returned container is zeroed on drop
+    /// and derefs to a byte slice.
+    pub fn open(&self, password: impl AsRef<[u8]>) -> Result<SensitiveData, Error> {
+        let mut output = SensitiveData::zeros(self.len());
+        self.open_into(password, &mut *output.0).map(|()| output)
     }
 }
 
@@ -425,5 +472,5 @@ where
         .kdf(kdf)
         .seal(PASSWORD, &message)
         .unwrap();
-    assert_eq!(pwbox.open(PASSWORD).unwrap(), message);
+    assert_eq!(message, &*pwbox.open(PASSWORD).unwrap());
 }
