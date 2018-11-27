@@ -40,6 +40,11 @@ name = "serialization"
 path = "tests/serialization.rs"
 required-features = ["rust-crypto", "exonum_sodiumoxide"]
 
+[[example]]
+name = "sodium_keypair"
+path = "examples/sodium_keypair.rs"
+required-features = ["exonum_sodiumoxide"]
+
 [[bench]]
 name = "eq"
 harness = false
