@@ -52,7 +52,7 @@ script:
 - cargo clippy --all-features -- -D warnings
 - cargo test --tests --all-features
 - cargo test --doc --all-features
-- cargo run --example sodium_keypair
+- cargo run --example sodium_keypair > /dev/null
 - cargo clean --doc && cargo doc --all-features --no-deps && cargo deadlinks --dir target/doc
 
 deploy:
