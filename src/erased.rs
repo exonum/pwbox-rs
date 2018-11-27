@@ -337,7 +337,7 @@ pub trait Suite {
     fn add_ciphers_and_kdfs(eraser: &mut Eraser);
 }
 
-// This function is used in testing cryptographic backends, so it's public intentionally.
+// This function is used in testing cryptographic backends, so it's intentionally kept public.
 #[cfg(test)]
 #[doc(hidden)]
 pub fn test_kdf_and_cipher_corruption<K, C>(kdf: K)

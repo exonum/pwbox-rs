@@ -119,9 +119,17 @@ pub use cipher_with_mac::{CipherWithMac, Mac, UnauthenticatedCipher};
 pub use erased::{ErasedPwBox, Eraser, Suite};
 
 /// Expected upper bound on byte buffers created during encryption / decryption.
-const BUFFER_SIZE: usize = 128;
+const BUFFER_SIZE: usize = 256;
 
-/// TODO
+/// Container for data obtained after opening a `PwBox`.
+///
+/// # Safety
+///
+/// The container is zeroed on drop. Internally, it uses [`SmallVec`]; hence,
+/// the data with size <= 256 bytes is stored on stack, which further
+/// reduces possibility of data leakage.
+///
+/// [`SmallVec`]: https://docs.rs/smallvec/0.6.6/smallvec/struct.SmallVec.html
 #[derive(Clone)]
 pub struct SensitiveData(SmallVec<[u8; BUFFER_SIZE]>);
 
@@ -148,7 +156,7 @@ impl Deref for SensitiveData {
 impl Drop for SensitiveData {
     fn drop(&mut self) {
         let handle = ClearOnDrop::new(&mut self.0);
-        drop(handle); // this is where bytes are cleared
+        drop(handle); // this is where the bytes are cleared
     }
 }
 
@@ -470,7 +478,7 @@ where
     }
 }
 
-// This function is used in testing cryptographic backends, so it's public intentionally.
+// This function is used in testing cryptographic backends, so it's intentionally kept public.
 #[cfg(test)]
 #[doc(hidden)]
 pub fn test_kdf_and_cipher<K, C>(kdf: K)
