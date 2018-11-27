@@ -13,13 +13,14 @@
 // limitations under the License.
 
 //! Password-based encryption example for securely storing an Ed25519 keypair.
+//! For simplicity, errors during processing lead to panics.
 
 extern crate exonum_sodiumoxide as sodiumoxide;
-extern crate hex_buffer_serde;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate hex;
+extern crate hex_buffer_serde;
 extern crate pwbox;
 extern crate rand;
 extern crate toml;

@@ -160,7 +160,13 @@ where
     /// 2. Compute MAC over the ciphertext with `mac_key`. If MAC is not equal to
     ///   the supplied one, return `None`.
     /// 3. Decrypt the ciphertext under the `cipher_key` and `nonce`.
-    fn open(&self, enc: &CipherOutput, nonce: &[u8], key: &[u8], output: &mut [u8]) -> Result<(), ()> {
+    fn open(
+        &self,
+        enc: &CipherOutput,
+        nonce: &[u8],
+        key: &[u8],
+        output: &mut [u8],
+    ) -> Result<(), ()> {
         debug_assert_eq!(key.len(), self.key_len());
         debug_assert_eq!(enc.mac.len(), M::MAC_LEN);
         debug_assert_eq!(output.len(), enc.ciphertext.len());

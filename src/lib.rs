@@ -86,8 +86,8 @@ extern crate rand_core;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate serde_json;
 extern crate hex_buffer_serde;
+extern crate serde_json;
 
 // Crates for testing.
 #[cfg(test)]
@@ -208,7 +208,13 @@ pub trait Cipher: 'static {
     /// have correct sizes.
     ///
     /// [`PwBox`]: struct.PwBox.html
-    fn open(&self, encrypted: &CipherOutput, nonce: &[u8], key: &[u8], output: &mut [u8]) -> Result<(), ()>;
+    fn open(
+        &self,
+        encrypted: &CipherOutput,
+        nonce: &[u8],
+        key: &[u8],
+        output: &mut [u8],
+    ) -> Result<(), ()>;
 }
 
 /// Output of a `Cipher`.
@@ -240,7 +246,13 @@ impl Cipher for Box<dyn Cipher> {
         (**self).seal(message, nonce, key)
     }
 
-    fn open(&self, enc: &CipherOutput, nonce: &[u8], key: &[u8], output: &mut [u8]) -> Result<(), ()> {
+    fn open(
+        &self,
+        enc: &CipherOutput,
+        nonce: &[u8],
+        key: &[u8],
+        output: &mut [u8],
+    ) -> Result<(), ()> {
         (**self).open(enc, nonce, key, output)
     }
 }
@@ -340,6 +352,8 @@ impl<K: DeriveKey + Default, C: Cipher + Default> PwBox<K, C> {
     }
 }
 
+// `is_empty()` method wouldn't make much sense; in *all* valid use cases, `len() > 0`.
+#[cfg_attr(feature = "cargo-clippy", allow(len_without_is_empty))]
 impl<K: DeriveKey, C: Cipher> PwBox<K, C> {
     fn seal<R: RngCore + ?Sized>(
         kdf: K,
@@ -377,7 +391,11 @@ impl<K: DeriveKey, C: Cipher> PwBox<K, C> {
     ///
     /// This method should be preferred to `open()` if the `output` type implements
     /// zeroing on drop (e.g., cryptographic secrets from `sodiumoxide`).
-    pub fn open_into(&self, password: impl AsRef<[u8]>, mut output: impl AsMut<[u8]>) -> Result<(), Error> {
+    pub fn open_into(
+        &self,
+        password: impl AsRef<[u8]>,
+        mut output: impl AsMut<[u8]>,
+    ) -> Result<(), Error> {
         assert_eq!(
             output.as_mut().len(),
             self.len(),

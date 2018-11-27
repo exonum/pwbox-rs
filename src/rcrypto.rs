@@ -26,7 +26,7 @@ use self::rcrypto::{
 use clear_on_drop::ClearOnDrop;
 use failure::Fail;
 
-use utils::LogNTransform;
+use utils::log_transform::LogNTransform;
 use {Cipher, CipherOutput, CipherWithMac, DeriveKey, Eraser, Mac, Suite, UnauthenticatedCipher};
 
 /// AES-128 cipher in CTR mode.
@@ -201,7 +201,13 @@ impl Cipher for Aes128Gcm {
         CipherOutput { ciphertext, mac }
     }
 
-    fn open(&self, enc: &CipherOutput, nonce: &[u8], key: &[u8], output: &mut [u8]) -> Result<(), ()> {
+    fn open(
+        &self,
+        enc: &CipherOutput,
+        nonce: &[u8],
+        key: &[u8],
+        output: &mut [u8],
+    ) -> Result<(), ()> {
         let mut cipher = aes_gcm::AesGcm::new(aes::KeySize::KeySize128, key, nonce, &[]);
 
         if cipher.decrypt(&enc.ciphertext, output, &enc.mac) {

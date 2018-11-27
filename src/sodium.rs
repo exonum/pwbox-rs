@@ -118,7 +118,13 @@ impl Cipher for XSalsa20Poly1305 {
         }
     }
 
-    fn open(&self, enc: &CipherOutput, nonce: &[u8], key: &[u8], output: &mut [u8]) -> Result<(), ()> {
+    fn open(
+        &self,
+        enc: &CipherOutput,
+        nonce: &[u8],
+        key: &[u8],
+        output: &mut [u8],
+    ) -> Result<(), ()> {
         let nonce = Nonce::from_slice(nonce).expect("invalid nonce length");
         let key = Key::from_slice(key).expect("invalid key length");
         let mac = Tag::from_slice(&enc.mac).expect("invalid MAC length");

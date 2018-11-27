@@ -12,64 +12,65 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::{de::Visitor, Deserializer, Serializer};
-
-use std::fmt;
-
 #[cfg(feature = "rust-crypto")]
-pub enum LogNTransform {}
+pub mod log_transform {
+    use serde::{de::Visitor, Deserializer, Serializer};
 
-#[cfg(feature = "rust-crypto")]
-impl LogNTransform {
-    #[cfg_attr(feature = "cargo-clippy", allow(trivially_copy_pass_by_ref))]
-    pub fn serialize<S: Serializer>(value: &u8, serializer: S) -> Result<S::Ok, S::Error> {
-        assert!(*value < 32, "too large value to serialize: {}", value);
-        serializer.serialize_u64(1 << u64::from(*value))
-    }
+    use std::fmt;
 
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<u8, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        use serde::de::Error as DeError;
+    pub enum LogNTransform {}
 
-        struct Log2Visitor;
-
-        impl<'de> Visitor<'de> for Log2Visitor {
-            type Value = u8;
-
-            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                f.write_str("a power of two")
-            }
-
-            fn visit_u64<E: DeError>(self, value: u64) -> Result<Self::Value, E> {
-                if !value.is_power_of_two() {
-                    return Err(E::custom("not a power of two"));
-                }
-                Ok(63 - value.leading_zeros() as u8)
-            }
+    #[cfg(feature = "rust-crypto")]
+    impl LogNTransform {
+        #[cfg_attr(feature = "cargo-clippy", allow(trivially_copy_pass_by_ref))]
+        pub fn serialize<S: Serializer>(value: &u8, serializer: S) -> Result<S::Ok, S::Error> {
+            assert!(*value < 32, "too large value to serialize: {}", value);
+            serializer.serialize_u64(1 << u64::from(*value))
         }
 
-        deserializer.deserialize_u64(Log2Visitor)
+        pub fn deserialize<'de, D>(deserializer: D) -> Result<u8, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            use serde::de::Error as DeError;
+
+            struct Log2Visitor;
+
+            impl<'de> Visitor<'de> for Log2Visitor {
+                type Value = u8;
+
+                fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                    f.write_str("a power of two")
+                }
+
+                fn visit_u64<E: DeError>(self, value: u64) -> Result<Self::Value, E> {
+                    if !value.is_power_of_two() {
+                        return Err(E::custom("not a power of two"));
+                    }
+                    Ok(63 - value.leading_zeros() as u8)
+                }
+            }
+
+            deserializer.deserialize_u64(Log2Visitor)
+        }
     }
-}
 
-#[cfg(feature = "rust-crypto")]
-#[test]
-fn log2_transform() {
-    use serde_json::{self, Value};
+    #[test]
+    fn log2_transform() {
+        use serde_json::{self, Value};
 
-    #[derive(Serialize, Deserialize)]
-    struct Test {
-        #[serde(rename = "n", with = "LogNTransform")]
-        log_n: u8,
+        #[derive(Serialize, Deserialize)]
+        struct Test {
+            #[serde(rename = "n", with = "LogNTransform")]
+            log_n: u8,
+        }
+
+        let json = r#"{ "n": 65536 }"#;
+        let value: Test = serde_json::from_str(json).unwrap();
+        assert_eq!(value.log_n, 16);
+        assert_eq!(
+            serde_json::to_value(value).unwrap(),
+            serde_json::from_str::<Value>(json).unwrap(),
+        );
     }
-
-    let json = r#"{ "n": 65536 }"#;
-    let value: Test = serde_json::from_str(json).unwrap();
-    assert_eq!(value.log_n, 16);
-    assert_eq!(
-        serde_json::to_value(value).unwrap(),
-        serde_json::from_str::<Value>(json).unwrap(),
-    );
 }
