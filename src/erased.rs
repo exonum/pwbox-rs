@@ -95,10 +95,10 @@ type KdfFactory = Box<dyn Fn(JsonValue) -> Result<Box<dyn DeriveKey>, JsonError>
 /// # Examples
 ///
 /// ```
-/// # #[cfg(all(feature = "exonum_libsodium", feature = "rust-crypto"))]
-/// # fn main() {
 /// # extern crate pwbox;
 /// # extern crate rand;
+/// # #[cfg(all(feature = "exonum_sodiumoxide", feature = "rust-crypto"))]
+/// # fn main() {
 /// # use rand::thread_rng;
 /// # use pwbox::{Eraser, Suite,
 /// #     rcrypto::{Scrypt as SomeKdf, Aes128Gcm as SomeCipher},
@@ -119,9 +119,9 @@ type KdfFactory = Box<dyn Fn(JsonValue) -> Result<Box<dyn DeriveKey>, JsonError>
 ///
 /// // Restore a `PwBox`.
 /// let restored = eraser.restore(&erased).unwrap();
-/// assert_eq!(restored.open("password").unwrap(), b"some data");
+/// assert_eq!(&*restored.open("password").unwrap(), b"some data");
 /// # } // main
-/// # #[cfg(not(all(feature = "exonum_libsodium", feature = "rust-crypto")))]
+/// # #[cfg(not(all(feature = "exonum_sodiumoxide", feature = "rust-crypto")))]
 /// # fn main() {}
 /// ```
 pub struct Eraser {
