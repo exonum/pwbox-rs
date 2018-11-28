@@ -160,7 +160,21 @@ impl Drop for SensitiveData {
     }
 }
 
-/// Key derivation function.
+/// Key derivation function (KDF).
+///
+/// An instance of `DeriveKey` implementation corresponds to a particular set of difficulty params
+/// of a particular KDF.
+///
+/// # Implementation notes
+///
+/// If you want to use a `DeriveKey` implementation with an [`Eraser`], it should
+/// additionally implement the following traits:
+///
+/// - `Default` (should return a KDF instance with reasonable difficulty params)
+/// - `Clone`
+/// - `Serialize` / `Deserialize` from `serde`
+///
+/// [`Eraser`]: struct.Eraser.html
 pub trait DeriveKey: 'static {
     /// Returns byte size of salt supplied to the KDF.
     fn salt_len(&self) -> usize;
@@ -190,6 +204,11 @@ impl DeriveKey for Box<dyn DeriveKey> {
 }
 
 /// Authenticated symmetric cipher.
+///
+/// # Implementation notes
+///
+/// Implementors should usually be empty structs; use of `&self` in method definitions
+/// is motivated by object safety. Implementors should implement `Default` and `Clone`.
 pub trait Cipher: 'static {
     /// Byte size of a key.
     fn key_len(&self) -> usize;
