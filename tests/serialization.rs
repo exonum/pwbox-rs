@@ -60,7 +60,7 @@ fn toml_serialization() {
     let mut eraser = Eraser::new();
     eraser.add_suite::<Sodium>();
     let encrypted = Sodium::build_box(&mut rng).seal(PASSWORD, &secret).unwrap();
-    let encrypted = eraser.erase(encrypted).unwrap();
+    let encrypted = eraser.erase(&encrypted).unwrap();
 
     let s = toml::to_string_pretty(&encrypted).unwrap();
     let restored = toml::from_str(&s).unwrap();

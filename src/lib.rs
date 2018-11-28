@@ -66,7 +66,7 @@
 //! // Serialize box.
 //! let mut eraser = Eraser::new();
 //! eraser.add_suite::<Sodium>();
-//! let erased: ErasedPwBox = eraser.erase(pwbox).unwrap();
+//! let erased: ErasedPwBox = eraser.erase(&pwbox).unwrap();
 //! println!("{}", serde_json::to_string_pretty(&erased).unwrap());
 //! // Deserialize box back.
 //! let plaintext = eraser.restore(&erased)?.open(b"correct horse")?;
@@ -81,6 +81,7 @@ extern crate clear_on_drop;
 #[macro_use]
 extern crate smallvec;
 extern crate failure;
+#[macro_use]
 extern crate failure_derive;
 extern crate rand_core;
 extern crate serde;
@@ -114,7 +115,7 @@ pub mod rcrypto;
 pub mod sodium;
 
 pub use cipher_with_mac::{CipherWithMac, Mac, UnauthenticatedCipher};
-pub use erased::{ErasedPwBox, Eraser, Suite};
+pub use erased::{EraseError, ErasedPwBox, Eraser, Suite};
 pub use traits::{Cipher, CipherOutput, DeriveKey};
 pub use utils::SensitiveData;
 

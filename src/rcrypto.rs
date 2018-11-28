@@ -237,7 +237,7 @@ impl Cipher for Aes128Gcm {
 /// let mut eraser = Eraser::new();
 /// eraser.add_suite::<RustCrypto>();
 /// let erased: ErasedPwBox = // deserialized from some format
-/// #   eraser.erase(pwbox).unwrap();
+/// #   eraser.erase(&pwbox).unwrap();
 /// let plaintext = eraser.restore(&erased)?.open(b"correct horse")?;
 /// # assert_eq!(&*plaintext, b"battery staple");
 /// # Ok(())
@@ -333,7 +333,7 @@ mod tests {
             .seal(PASSWORD, MESSAGE)
             .unwrap();
 
-        let erased = eraser.erase(pwbox).unwrap();
+        let erased = eraser.erase(&pwbox).unwrap();
         let pwbox_copy = eraser.restore(&erased).unwrap();
         assert_eq!(MESSAGE, &*pwbox_copy.open(PASSWORD).unwrap());
     }

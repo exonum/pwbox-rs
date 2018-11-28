@@ -93,6 +93,22 @@ struct CipherParams {
 type CipherFactory = Box<dyn Fn() -> Box<dyn ObjectSafeCipher>>;
 type KdfFactory = Box<dyn Fn(JsonValue) -> Result<Box<dyn DeriveKey>, JsonError>>;
 
+/// Errors occurring during erasing a `PwBox`.
+#[derive(Debug, Fail)]
+pub enum EraseError {
+    /// KDF used in the box is not registered with the `Eraser`.
+    #[fail(display = "KDF used in the box is not registered with the `Eraser`")]
+    NoKdf,
+
+    /// Cipher used in the box is not registered with the `Eraser`.
+    #[fail(display = "cipher used in the box is not registered with the `Eraser`")]
+    NoCipher,
+
+    /// Error serializing KDF params.
+    #[fail(display = "error serializing KDF params: {}", _0)]
+    SerializeKdf(#[fail(cause)] JsonError),
+}
+
 /// Helper structure to convert password-encrypted boxes to a serializable format and back.
 ///
 /// # Examples
@@ -117,7 +133,7 @@ type KdfFactory = Box<dyn Fn(JsonValue) -> Result<Box<dyn DeriveKey>, JsonError>
 /// let pwbox = SomeSuite::build_box(&mut thread_rng())
 ///     .seal("password", b"some data")
 ///     .unwrap();
-/// let erased = eraser.erase(pwbox).unwrap();
+/// let erased = eraser.erase(&pwbox).unwrap();
 /// // `erased` can now be serialized somewhere, e.g., in JSON format.
 ///
 /// // Restore a `PwBox`.
@@ -262,34 +278,36 @@ impl Eraser {
     }
 
     /// Converts a `pwbox` into serializable form.
-    pub fn erase<K, C>(&self, pwbox: PwBox<K, C>) -> Result<ErasedPwBox, PwBox<K, C>>
+    pub fn erase<K, C>(&self, pwbox: &PwBox<K, C>) -> Result<ErasedPwBox, EraseError>
     where
         K: DeriveKey + Serialize,
         C: Cipher,
     {
         let kdf = match self.lookup_kdf::<K>() {
             Some(kdf) => kdf,
-            None => return Err(pwbox),
+            None => return Err(EraseError::NoKdf),
         };
         let cipher = match self.lookup_cipher::<C>() {
             Some(cipher) => cipher,
-            None => return Err(pwbox),
+            None => return Err(EraseError::NoCipher),
         };
         let kdf_params = match serde_json::to_value(&pwbox.inner.kdf) {
             Ok(params) => params,
-            Err(_) => return Err(pwbox),
+            Err(e) => return Err(EraseError::SerializeKdf(e)),
         };
 
-        let pwbox = pwbox.inner;
+        let pwbox = &pwbox.inner;
         Ok(ErasedPwBox {
-            encrypted: pwbox.encrypted,
+            encrypted: pwbox.encrypted.clone(),
             kdf: kdf.to_owned(),
             kdf_params: KdfParams {
-                salt: pwbox.salt,
+                salt: pwbox.salt.clone(),
                 inner: kdf_params,
             },
             cipher: cipher.to_owned(),
-            cipher_params: CipherParams { iv: pwbox.nonce },
+            cipher_params: CipherParams {
+                iv: pwbox.nonce.clone(),
+            },
         })
     }
 
@@ -369,7 +387,7 @@ where
     // All corrupted input needs to pass through `Eraser` / `ErasedPwBox`, so we test them.
     let mut eraser = Eraser::new();
     let eraser = eraser.add_cipher::<C>("cipher").add_kdf::<K>("kdf");
-    let mut erased = eraser.erase(pwbox).map_err(drop).unwrap();
+    let mut erased = eraser.erase(&pwbox).unwrap();
 
     // Lengthen MAC.
     erased.encrypted.mac.push(b'!');
@@ -454,7 +472,7 @@ fn erase_pwbox() {
     let pwbox =
         PwBox::<Scrypt, XSalsa20Poly1305>::new(&mut thread_rng(), PASSWORD, MESSAGE).unwrap();
 
-    let erased = eraser.erase(pwbox).unwrap();
+    let erased = eraser.erase(&pwbox).unwrap();
     let pwbox_copy = eraser.restore(&erased).unwrap();
     assert_eq!(MESSAGE.len(), pwbox_copy.len());
     assert_eq!(MESSAGE, &*pwbox_copy.open(PASSWORD).unwrap());

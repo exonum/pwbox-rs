@@ -100,7 +100,7 @@ impl Keypair<SecretKey> {
         let pwbox = Sodium::build_box(&mut thread_rng())
             .seal(password, seed)
             .unwrap();
-        let pwbox = eraser.erase(pwbox).unwrap();
+        let pwbox = eraser.erase(&pwbox).unwrap();
 
         Keypair {
             public_key: self.public_key,
