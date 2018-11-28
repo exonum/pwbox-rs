@@ -12,6 +12,57 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use clear_on_drop::ClearOnDrop;
+use smallvec::SmallVec;
+
+use std::{fmt, ops::Deref};
+
+/// Expected upper bound on byte buffers created during encryption / decryption.
+const BUFFER_SIZE: usize = 256;
+
+/// Container for data obtained after opening a `PwBox`.
+///
+/// # Safety
+///
+/// The container is zeroed on drop. Internally, it uses [`SmallVec`]; hence,
+/// the data with size <= 256 bytes is stored on stack, which further
+/// reduces possibility of data leakage.
+///
+/// [`SmallVec`]: https://docs.rs/smallvec/0.6.6/smallvec/struct.SmallVec.html
+#[derive(Clone)]
+pub struct SensitiveData(SmallVec<[u8; BUFFER_SIZE]>);
+
+impl SensitiveData {
+    pub(crate) fn zeros(len: usize) -> Self {
+        SensitiveData(smallvec![0; len])
+    }
+
+    pub(crate) fn bytes_mut(&mut self) -> &mut [u8] {
+        &mut *self.0
+    }
+}
+
+impl fmt::Debug for SensitiveData {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_tuple("SensitiveData").field(&"_").finish()
+    }
+}
+
+impl Deref for SensitiveData {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &*self.0
+    }
+}
+
+impl Drop for SensitiveData {
+    fn drop(&mut self) {
+        let handle = ClearOnDrop::new(&mut self.0);
+        drop(handle); // this is where the bytes are cleared
+    }
+}
+
 #[cfg(feature = "rust-crypto")]
 pub mod log_transform {
     use serde::{de::Visitor, Deserializer, Serializer};
