@@ -74,9 +74,9 @@ impl DeriveKey for Scrypt {
 
     fn derive_key(
         &self,
+        buf: &mut [u8],
         password: &[u8],
         salt: &[u8],
-        buf: &mut [u8],
     ) -> Result<(), Box<dyn Fail>> {
         derive_key(
             buf,
@@ -120,10 +120,10 @@ impl Cipher for XSalsa20Poly1305 {
 
     fn open(
         &self,
+        output: &mut [u8],
         enc: &CipherOutput,
         nonce: &[u8],
         key: &[u8],
-        output: &mut [u8],
     ) -> Result<(), ()> {
         let nonce = Nonce::from_slice(nonce).expect("invalid nonce length");
         let key = Key::from_slice(key).expect("invalid key length");

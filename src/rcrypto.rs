@@ -160,9 +160,9 @@ impl DeriveKey for Scrypt {
 
     fn derive_key(
         &self,
+        buf: &mut [u8],
         password: &[u8],
         salt: &[u8],
-        buf: &mut [u8],
     ) -> Result<(), Box<dyn Fail>> {
         let params = ScryptParams::new(self.log_n, self.r, self.p);
         scrypt(password, salt, &params, buf);
@@ -203,10 +203,10 @@ impl Cipher for Aes128Gcm {
 
     fn open(
         &self,
+        output: &mut [u8],
         enc: &CipherOutput,
         nonce: &[u8],
         key: &[u8],
-        output: &mut [u8],
     ) -> Result<(), ()> {
         let mut cipher = aes_gcm::AesGcm::new(aes::KeySize::KeySize128, key, nonce, &[]);
 
@@ -296,13 +296,13 @@ mod tests {
 
         let mut sealed = cipher.seal(MESSAGE, &nonce, &key);
         let mut plaintext = vec![0; MESSAGE.len()];
-        cipher.open(&sealed, &nonce, &key, &mut plaintext).unwrap();
+        cipher.open(&mut plaintext, &sealed, &nonce, &key).unwrap();
         assert_eq!(&*plaintext, MESSAGE);
 
         // Corrupt MAC.
         sealed.mac[0] ^= 1;
         let mut plaintext = vec![0; MESSAGE.len()];
-        assert!(cipher.open(&sealed, &nonce, &key, &mut plaintext).is_err());
+        assert!(cipher.open(&mut plaintext, &sealed, &nonce, &key).is_err());
     }
 
     // `rust-crypto` is quite slow in debug mode, so we use *very* easy parameters here

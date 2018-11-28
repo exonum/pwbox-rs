@@ -170,7 +170,7 @@ pub trait DeriveKey: 'static {
     /// # Safety
     ///
     /// When used within `PwBox`, `salt` is guaranteed to have the correct size.
-    fn derive_key(&self, password: &[u8], salt: &[u8], buf: &mut [u8])
+    fn derive_key(&self, buf: &mut [u8], password: &[u8], salt: &[u8])
         -> Result<(), Box<dyn Fail>>;
 }
 
@@ -181,11 +181,11 @@ impl DeriveKey for Box<dyn DeriveKey> {
 
     fn derive_key(
         &self,
+        buf: &mut [u8],
         password: &[u8],
         salt: &[u8],
-        buf: &mut [u8],
     ) -> Result<(), Box<dyn Fail>> {
-        (**self).derive_key(password, salt, buf)
+        (**self).derive_key(buf, password, salt)
     }
 }
 
@@ -218,10 +218,10 @@ pub trait Cipher: 'static {
     /// [`PwBox`]: struct.PwBox.html
     fn open(
         &self,
+        output: &mut [u8],
         encrypted: &CipherOutput,
         nonce: &[u8],
         key: &[u8],
-        output: &mut [u8],
     ) -> Result<(), ()>;
 }
 
@@ -229,11 +229,11 @@ pub trait Cipher: 'static {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CipherOutput {
     /// Encrypted data. Has the same size as the original data.
-    #[serde(with = "HexForm::<Vec<u8>>")]
+    #[serde(with = "HexForm")]
     pub ciphertext: Vec<u8>,
 
     /// Message authentication code for the `ciphertext`.
-    #[serde(with = "HexForm::<Vec<u8>>")]
+    #[serde(with = "HexForm")]
     pub mac: Vec<u8>,
 }
 
@@ -256,12 +256,12 @@ impl Cipher for Box<dyn Cipher> {
 
     fn open(
         &self,
-        enc: &CipherOutput,
+        output: &mut [u8],
+        encrypted: &CipherOutput,
         nonce: &[u8],
         key: &[u8],
-        output: &mut [u8],
     ) -> Result<(), ()> {
-        (**self).open(enc, nonce, key, output)
+        (**self).open(output, encrypted, nonce, key)
     }
 }
 
@@ -378,7 +378,7 @@ impl<K: DeriveKey, C: Cipher> PwBox<K, C> {
 
         // Derive key from password and salt.
         let mut key = SensitiveData::zeros(cipher.key_len());
-        kdf.derive_key(password.as_ref(), &*salt, &mut *key.0)?;
+        kdf.derive_key(&mut *key.0, password.as_ref(), &*salt)?;
 
         let encrypted = cipher.seal(message.as_ref(), &*nonce, &*key);
         Ok(PwBox {
@@ -401,8 +401,8 @@ impl<K: DeriveKey, C: Cipher> PwBox<K, C> {
     /// zeroing on drop (e.g., cryptographic secrets from `sodiumoxide`).
     pub fn open_into(
         &self,
-        password: impl AsRef<[u8]>,
         mut output: impl AsMut<[u8]>,
+        password: impl AsRef<[u8]>,
     ) -> Result<(), Error> {
         assert_eq!(
             output.as_mut().len(),
@@ -415,11 +415,11 @@ impl<K: DeriveKey, C: Cipher> PwBox<K, C> {
         // Derive key from password and salt.
         let mut key = SensitiveData::zeros(key_len);
         self.kdf
-            .derive_key(password.as_ref(), &self.salt, &mut *key.0)
+            .derive_key(&mut *key.0, password.as_ref(), &self.salt)
             .map_err(Error::DeriveKey)?;
 
         self.cipher
-            .open(&self.encrypted, &self.nonce, &*key, output.as_mut())
+            .open(output.as_mut(), &self.encrypted, &self.nonce, &*key)
             .map_err(|()| Error::MacMismatch)
     }
 
@@ -427,7 +427,7 @@ impl<K: DeriveKey, C: Cipher> PwBox<K, C> {
     /// and derefs to a byte slice.
     pub fn open(&self, password: impl AsRef<[u8]>) -> Result<SensitiveData, Error> {
         let mut output = SensitiveData::zeros(self.len());
-        self.open_into(password, &mut *output.0).map(|()| output)
+        self.open_into(&mut *output.0, password).map(|()| output)
     }
 }
 

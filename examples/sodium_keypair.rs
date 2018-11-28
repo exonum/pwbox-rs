@@ -72,7 +72,7 @@ impl Keypair<RestoredPwBox> {
     pub fn decrypt(&self, password: impl AsRef<[u8]>) -> Keypair<SecretKey> {
         let mut seed = Seed([0; SEEDBYTES]);
         // `seed` is zeroed on drop, so we can use `PwBox::open_into`.
-        self.secret_key.open_into(password, &mut seed.0).unwrap();
+        self.secret_key.open_into(&mut seed.0, password).unwrap();
         let (public_key, secret_key) = keypair_from_seed(&seed);
         assert_eq!(
             public_key, self.public_key,

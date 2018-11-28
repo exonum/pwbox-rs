@@ -162,10 +162,10 @@ where
     /// 3. Decrypt the ciphertext under the `cipher_key` and `nonce`.
     fn open(
         &self,
+        output: &mut [u8],
         enc: &CipherOutput,
         nonce: &[u8],
         key: &[u8],
-        output: &mut [u8],
     ) -> Result<(), ()> {
         debug_assert_eq!(key.len(), self.key_len());
         debug_assert_eq!(enc.mac.len(), M::MAC_LEN);
