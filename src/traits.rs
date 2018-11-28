@@ -44,7 +44,7 @@ pub trait DeriveKey: 'static {
     ///
     /// When used within `PwBox`, `salt` is guaranteed to have the correct size.
     fn derive_key(&self, buf: &mut [u8], password: &[u8], salt: &[u8])
-                  -> Result<(), Box<dyn Fail>>;
+        -> Result<(), Box<dyn Fail>>;
 }
 
 impl DeriveKey for Box<dyn DeriveKey> {

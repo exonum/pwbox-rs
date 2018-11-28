@@ -20,9 +20,8 @@ use serde_json::{self, Error as JsonError, Value as JsonValue};
 use std::{any::TypeId, collections::HashMap, fmt};
 
 use {
-    Cipher, CipherOutput, DeriveKey, Error, PwBox, PwBoxBuilder,
-    PwBoxInner, RestoredPwBox,
-    traits::{CipherObject, ObjectSafeCipher}
+    traits::{CipherObject, ObjectSafeCipher},
+    Cipher, CipherOutput, DeriveKey, Error, PwBox, PwBoxBuilder, PwBoxInner, RestoredPwBox,
 };
 
 /// Password-encrypted box suitable for (de)serialization.

@@ -184,18 +184,10 @@ pub enum Error {
     DeriveKey(#[fail(cause)] Box<dyn Fail>),
 }
 
-/// Password-encrypted data.
+/// The core cryptographic object of the library: a box containing randomly generated `salt`
+/// and cipher `nonce`, as well as the ciphertext and the KDF / cipher info.
 ///
-/// # See also
-///
-/// See the crate docs for an example of usage. See [`ErasedPwBox`] for serialization details.
-///
-/// [`ErasedPwBox`]: struct.ErasedPwBox.html
-#[derive(Debug)]
-pub struct PwBox<K, C> {
-    inner: PwBoxInner<K, CipherObject<C>>,
-}
-
+/// Reused within `PwBox` and `RestoredPwBox`.
 #[derive(Debug)]
 struct PwBoxInner<K, C> {
     salt: Vec<u8>,
@@ -203,83 +195,6 @@ struct PwBoxInner<K, C> {
     encrypted: CipherOutput,
     kdf: K,
     cipher: C,
-}
-
-/// Password-encrypted box restored by `Eraser`.
-pub struct RestoredPwBox {
-    inner: PwBoxInner<Box<dyn DeriveKey>, Box<dyn ObjectSafeCipher>>,
-}
-
-impl fmt::Debug for RestoredPwBox {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("RestoredPwBox").finish()
-    }
-}
-
-// `is_empty()` method wouldn't make much sense; in *all* valid use cases, `len() > 0`.
-#[cfg_attr(feature = "cargo-clippy", allow(len_without_is_empty))]
-impl RestoredPwBox {
-    /// Returns the byte size of the encrypted data stored in this box.
-    pub fn len(&self) -> usize {
-        self.inner.len()
-    }
-
-    /// Decrypts the box into the specified container.
-    ///
-    /// This method should be preferred to `open()` if the `output` type implements
-    /// zeroing on drop (e.g., cryptographic secrets from `sodiumoxide`).
-    pub fn open_into(
-        &self,
-        output: impl AsMut<[u8]>,
-        password: impl AsRef<[u8]>,
-    ) -> Result<(), Error> {
-        self.inner.open_into(output, password)
-    }
-
-    /// Decrypts the box and returns its contents. The returned container is zeroed on drop
-    /// and derefs to a byte slice.
-    pub fn open(&self, password: impl AsRef<[u8]>) -> Result<SensitiveData, Error> {
-        self.inner.open(password)
-    }
-}
-
-impl<K: DeriveKey + Default, C: Cipher> PwBox<K, C> {
-    /// Creates a new box by using default settings of the supplied KDF.
-    pub fn new<R: RngCore + CryptoRng>(
-        rng: &mut R,
-        password: impl AsRef<[u8]>,
-        message: impl AsRef<[u8]>,
-    ) -> Result<Self, Box<dyn Fail>> {
-        let (kdf, cipher) = (K::default(), CipherObject::default());
-        PwBoxInner::seal(kdf, cipher, rng, password, message).map(|inner| PwBox { inner })
-    }
-}
-
-// `is_empty()` method wouldn't make much sense; in *all* valid use cases, `len() > 0`.
-#[cfg_attr(feature = "cargo-clippy", allow(len_without_is_empty))]
-impl<K: DeriveKey, C: Cipher> PwBox<K, C> {
-    /// Returns the byte size of the encrypted data stored in this box.
-    pub fn len(&self) -> usize {
-        self.inner.len()
-    }
-
-    /// Decrypts the box into the specified container.
-    ///
-    /// This method should be preferred to `open()` if the `output` type implements
-    /// zeroing on drop (e.g., cryptographic secrets from `sodiumoxide`).
-    pub fn open_into(
-        &self,
-        output: impl AsMut<[u8]>,
-        password: impl AsRef<[u8]>,
-    ) -> Result<(), Error> {
-        self.inner.open_into(output, password)
-    }
-
-    /// Decrypts the box and returns its contents. The returned container is zeroed on drop
-    /// and derefs to a byte slice.
-    pub fn open(&self, password: impl AsRef<[u8]>) -> Result<SensitiveData, Error> {
-        self.inner.open(password)
-    }
 }
 
 impl<K: DeriveKey, C: ObjectSafeCipher> PwBoxInner<K, C> {
@@ -338,11 +253,99 @@ impl<K: DeriveKey, C: ObjectSafeCipher> PwBoxInner<K, C> {
             .map_err(|()| Error::MacMismatch)
     }
 
-    /// Decrypts the box and returns its contents. The returned container is zeroed on drop
-    /// and derefs to a byte slice.
     fn open(&self, password: impl AsRef<[u8]>) -> Result<SensitiveData, Error> {
         let mut output = SensitiveData::zeros(self.len());
-        self.open_into(output.bytes_mut(), password).map(|()| output)
+        self.open_into(output.bytes_mut(), password)
+            .map(|()| output)
+    }
+}
+
+/// Password-encrypted data.
+///
+/// # See also
+///
+/// See the crate docs for an example of usage. See [`ErasedPwBox`] for serialization details.
+///
+/// [`ErasedPwBox`]: struct.ErasedPwBox.html
+#[derive(Debug)]
+pub struct PwBox<K, C> {
+    inner: PwBoxInner<K, CipherObject<C>>,
+}
+
+impl<K: DeriveKey + Default, C: Cipher> PwBox<K, C> {
+    /// Creates a new box by using default settings of the supplied KDF.
+    pub fn new<R: RngCore + CryptoRng>(
+        rng: &mut R,
+        password: impl AsRef<[u8]>,
+        message: impl AsRef<[u8]>,
+    ) -> Result<Self, Box<dyn Fail>> {
+        let (kdf, cipher) = (K::default(), CipherObject::default());
+        PwBoxInner::seal(kdf, cipher, rng, password, message).map(|inner| PwBox { inner })
+    }
+}
+
+// `is_empty()` method wouldn't make much sense; in *all* valid use cases, `len() > 0`.
+#[cfg_attr(feature = "cargo-clippy", allow(len_without_is_empty))]
+impl<K: DeriveKey, C: Cipher> PwBox<K, C> {
+    /// Returns the byte size of the encrypted data stored in this box.
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
+    /// Decrypts the box into the specified container.
+    ///
+    /// This method should be preferred to `open()` if the `output` type implements
+    /// zeroing on drop (e.g., cryptographic secrets from `sodiumoxide`).
+    pub fn open_into(
+        &self,
+        output: impl AsMut<[u8]>,
+        password: impl AsRef<[u8]>,
+    ) -> Result<(), Error> {
+        self.inner.open_into(output, password)
+    }
+
+    /// Decrypts the box and returns its contents. The returned container is zeroed on drop
+    /// and derefs to a byte slice.
+    pub fn open(&self, password: impl AsRef<[u8]>) -> Result<SensitiveData, Error> {
+        self.inner.open(password)
+    }
+}
+
+/// Password-encrypted box restored by `Eraser`.
+pub struct RestoredPwBox {
+    inner: PwBoxInner<Box<dyn DeriveKey>, Box<dyn ObjectSafeCipher>>,
+}
+
+impl fmt::Debug for RestoredPwBox {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("RestoredPwBox").finish()
+    }
+}
+
+// `is_empty()` method wouldn't make much sense; in *all* valid use cases, `len() > 0`.
+#[cfg_attr(feature = "cargo-clippy", allow(len_without_is_empty))]
+impl RestoredPwBox {
+    /// Returns the byte size of the encrypted data stored in this box.
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
+    /// Decrypts the box into the specified container.
+    ///
+    /// This method should be preferred to `open()` if the `output` type implements
+    /// zeroing on drop (e.g., cryptographic secrets from `sodiumoxide`).
+    pub fn open_into(
+        &self,
+        output: impl AsMut<[u8]>,
+        password: impl AsRef<[u8]>,
+    ) -> Result<(), Error> {
+        self.inner.open_into(output, password)
+    }
+
+    /// Decrypts the box and returns its contents. The returned container is zeroed on drop
+    /// and derefs to a byte slice.
+    pub fn open(&self, password: impl AsRef<[u8]>) -> Result<SensitiveData, Error> {
+        self.inner.open(password)
     }
 }
 
