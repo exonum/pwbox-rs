@@ -311,7 +311,12 @@ impl<K: DeriveKey, C: Cipher> PwBox<K, C> {
     }
 }
 
-/// Password-encrypted box restored by `Eraser`.
+/// Password-encrypted box restored after deserialization.
+///
+/// If the box may be corrupted, it may make sense to check its length
+/// with the [`len()`] method before `open`ing the box.
+///
+/// [`len()`]: #method.len
 pub struct RestoredPwBox {
     inner: PwBoxInner<Box<dyn DeriveKey>, Box<dyn ObjectSafeCipher>>,
 }

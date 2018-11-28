@@ -49,6 +49,8 @@ pub trait Mac: 'static {
     /// # Safety
     ///
     /// When used within [`PwBox`], `key` is guaranteed to have the correct size.
+    ///
+    /// [`PwBox`]: struct.PwBox.html
     fn digest(key: &[u8], message: &[u8]) -> Vec<u8>;
 }
 
