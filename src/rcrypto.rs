@@ -180,34 +180,20 @@ impl DeriveKey for Scrypt {
 pub struct Aes128Gcm;
 
 impl Cipher for Aes128Gcm {
-    fn key_len(&self) -> usize {
-        16
-    }
+    const KEY_LEN: usize = 16;
+    const NONCE_LEN: usize = 12;
+    const MAC_LEN: usize = 16;
 
-    fn nonce_len(&self) -> usize {
-        12
-    }
-
-    fn mac_len(&self) -> usize {
-        16
-    }
-
-    fn seal(&self, message: &[u8], nonce: &[u8], key: &[u8]) -> CipherOutput {
+    fn seal(message: &[u8], nonce: &[u8], key: &[u8]) -> CipherOutput {
         // We don't use additional data (the last parameter to the constructor).
         let mut cipher = aes_gcm::AesGcm::new(aes::KeySize::KeySize128, key, nonce, &[]);
         let mut ciphertext = vec![0_u8; message.len()];
-        let mut mac = vec![0_u8; self.mac_len()];
+        let mut mac = vec![0_u8; Self::MAC_LEN];
         cipher.encrypt(message, &mut ciphertext, &mut mac);
         CipherOutput { ciphertext, mac }
     }
 
-    fn open(
-        &self,
-        output: &mut [u8],
-        enc: &CipherOutput,
-        nonce: &[u8],
-        key: &[u8],
-    ) -> Result<(), ()> {
+    fn open(output: &mut [u8], enc: &CipherOutput, nonce: &[u8], key: &[u8]) -> Result<(), ()> {
         let mut cipher = aes_gcm::AesGcm::new(aes::KeySize::KeySize128, key, nonce, &[]);
 
         if cipher.decrypt(&enc.ciphertext, output, &enc.mac) {
@@ -286,23 +272,23 @@ mod tests {
         use rand_core::RngCore;
 
         const MESSAGE: &[u8] = b"battery staple";
+        type Ci = CipherWithMac<Aes128Ctr, Keccak256>;
 
         let mut rng = thread_rng();
-        let cipher = CipherWithMac::<Aes128Ctr, Keccak256>::default();
-        let mut key = vec![0; cipher.key_len()];
+        let mut key = vec![0; Ci::KEY_LEN];
         rng.fill_bytes(&mut key);
-        let mut nonce = vec![0; cipher.nonce_len()];
+        let mut nonce = vec![0; Ci::NONCE_LEN];
         rng.fill_bytes(&mut nonce);
 
-        let mut sealed = cipher.seal(MESSAGE, &nonce, &key);
+        let mut sealed = Ci::seal(MESSAGE, &nonce, &key);
         let mut plaintext = vec![0; MESSAGE.len()];
-        cipher.open(&mut plaintext, &sealed, &nonce, &key).unwrap();
+        Ci::open(&mut plaintext, &sealed, &nonce, &key).unwrap();
         assert_eq!(&*plaintext, MESSAGE);
 
         // Corrupt MAC.
         sealed.mac[0] ^= 1;
         let mut plaintext = vec![0; MESSAGE.len()];
-        assert!(cipher.open(&mut plaintext, &sealed, &nonce, &key).is_err());
+        assert!(Ci::open(&mut plaintext, &sealed, &nonce, &key).is_err());
     }
 
     // `rust-crypto` is quite slow in debug mode, so we use *very* easy parameters here

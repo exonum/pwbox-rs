@@ -63,23 +63,6 @@ pub struct CipherWithMac<C, M> {
     _mac: PhantomData<M>,
 }
 
-impl<C, M> Default for CipherWithMac<C, M> {
-    fn default() -> Self {
-        CipherWithMac {
-            _cipher: PhantomData,
-            _mac: PhantomData,
-        }
-    }
-}
-
-impl<C, M> Clone for CipherWithMac<C, M> {
-    fn clone(&self) -> Self {
-        Self::default()
-    }
-}
-
-impl<C, M> Copy for CipherWithMac<C, M> {}
-
 #[cfg(feature = "exonum_sodiumoxide")]
 fn fixed_time_eq(lhs: &[u8], rhs: &[u8]) -> bool {
     extern crate exonum_sodiumoxide as sodiumoxide;
@@ -124,17 +107,10 @@ where
     M: Mac,
 {
     /// Equals to the sum of key sizes for the cipher and MAC.
-    fn key_len(&self) -> usize {
-        C::KEY_LEN + M::KEY_LEN
-    }
+    const KEY_LEN: usize = C::KEY_LEN + M::KEY_LEN;
 
-    fn nonce_len(&self) -> usize {
-        C::NONCE_LEN
-    }
-
-    fn mac_len(&self) -> usize {
-        M::MAC_LEN
-    }
+    const NONCE_LEN: usize = C::NONCE_LEN;
+    const MAC_LEN: usize = M::MAC_LEN;
 
     /// Works as follows:
     ///
@@ -142,7 +118,7 @@ where
     ///   (remaining bytes).
     /// 2. Encrypt the `message` using the cipher under `cipher_key` and `nonce`.
     /// 3. Compute MAC over the ciphertext with `mac_key`.
-    fn seal(&self, message: &[u8], nonce: &[u8], key: &[u8]) -> CipherOutput {
+    fn seal(message: &[u8], nonce: &[u8], key: &[u8]) -> CipherOutput {
         let (cipher_key, mac_key) = (&key[..C::KEY_LEN], &key[C::KEY_LEN..]);
         let mut ciphertext = message.to_vec();
         C::seal_or_open(&mut ciphertext, nonce, cipher_key);
@@ -160,15 +136,9 @@ where
     /// 2. Compute MAC over the ciphertext with `mac_key`. If MAC is not equal to
     ///   the supplied one, return `None`.
     /// 3. Decrypt the ciphertext under the `cipher_key` and `nonce`.
-    fn open(
-        &self,
-        output: &mut [u8],
-        enc: &CipherOutput,
-        nonce: &[u8],
-        key: &[u8],
-    ) -> Result<(), ()> {
-        debug_assert_eq!(key.len(), self.key_len());
-        debug_assert_eq!(enc.mac.len(), M::MAC_LEN);
+    fn open(output: &mut [u8], enc: &CipherOutput, nonce: &[u8], key: &[u8]) -> Result<(), ()> {
+        debug_assert_eq!(key.len(), Self::KEY_LEN);
+        debug_assert_eq!(enc.mac.len(), Self::MAC_LEN);
         debug_assert_eq!(output.len(), enc.ciphertext.len());
 
         let (cipher_key, mac_key) = (&key[..C::KEY_LEN], &key[C::KEY_LEN..]);

@@ -94,19 +94,11 @@ impl DeriveKey for Scrypt {
 pub struct XSalsa20Poly1305;
 
 impl Cipher for XSalsa20Poly1305 {
-    fn key_len(&self) -> usize {
-        secretbox::KEYBYTES
-    }
+    const KEY_LEN: usize = secretbox::KEYBYTES;
+    const NONCE_LEN: usize = secretbox::NONCEBYTES;
+    const MAC_LEN: usize = secretbox::MACBYTES;
 
-    fn nonce_len(&self) -> usize {
-        secretbox::NONCEBYTES
-    }
-
-    fn mac_len(&self) -> usize {
-        secretbox::MACBYTES
-    }
-
-    fn seal(&self, message: &[u8], nonce: &[u8], key: &[u8]) -> CipherOutput {
+    fn seal(message: &[u8], nonce: &[u8], key: &[u8]) -> CipherOutput {
         let nonce = Nonce::from_slice(nonce).expect("nonce");
         let key = Key::from_slice(key).expect("key");
         let mut message = message.to_vec();
@@ -118,13 +110,7 @@ impl Cipher for XSalsa20Poly1305 {
         }
     }
 
-    fn open(
-        &self,
-        output: &mut [u8],
-        enc: &CipherOutput,
-        nonce: &[u8],
-        key: &[u8],
-    ) -> Result<(), ()> {
+    fn open(output: &mut [u8], enc: &CipherOutput, nonce: &[u8], key: &[u8]) -> Result<(), ()> {
         let nonce = Nonce::from_slice(nonce).expect("invalid nonce length");
         let key = Key::from_slice(key).expect("invalid key length");
         let mac = Tag::from_slice(&enc.mac).expect("invalid MAC length");

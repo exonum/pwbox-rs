@@ -204,18 +204,13 @@ impl DeriveKey for Box<dyn DeriveKey> {
 }
 
 /// Authenticated symmetric cipher.
-///
-/// # Implementation notes
-///
-/// Implementors should usually be empty structs; use of `&self` in method definitions
-/// is motivated by object safety. Implementors should implement `Default` and `Clone`.
 pub trait Cipher: 'static {
     /// Byte size of a key.
-    fn key_len(&self) -> usize;
+    const KEY_LEN: usize;
     /// Byte size of a nonce (aka initialization vector, or IV).
-    fn nonce_len(&self) -> usize;
+    const NONCE_LEN: usize;
     /// Byte size of a message authentication code (MAC).
-    fn mac_len(&self) -> usize;
+    const MAC_LEN: usize;
 
     /// Encrypts `message` with the provided `key` and `nonce`.
     ///
@@ -224,7 +219,7 @@ pub trait Cipher: 'static {
     /// When used within [`PwBox`], `key` and `nonce` are guaranteed to have correct sizes.
     ///
     /// [`PwBox`]: struct.PwBox.html
-    fn seal(&self, message: &[u8], nonce: &[u8], key: &[u8]) -> CipherOutput;
+    fn seal(message: &[u8], nonce: &[u8], key: &[u8]) -> CipherOutput;
 
     /// Decrypts `encrypted` message with the provided `key` and `nonce` and stores
     /// the result into `output`. If the MAC does not verify, returns an error.
@@ -235,6 +230,30 @@ pub trait Cipher: 'static {
     /// have correct sizes.
     ///
     /// [`PwBox`]: struct.PwBox.html
+    fn open(
+        output: &mut [u8],
+        encrypted: &CipherOutput,
+        nonce: &[u8],
+        key: &[u8],
+    ) -> Result<(), ()>;
+}
+
+#[derive(Debug)]
+struct CipherObject<T>(PhantomData<T>);
+
+impl<T> Default for CipherObject<T> {
+    fn default() -> Self {
+        CipherObject(PhantomData)
+    }
+}
+
+/// Object-safe equivalent of a `Cipher`.
+pub(crate) trait ObjectSafeCipher: 'static {
+    fn key_len(&self) -> usize;
+    fn nonce_len(&self) -> usize;
+    fn mac_len(&self) -> usize;
+
+    fn seal(&self, message: &[u8], nonce: &[u8], key: &[u8]) -> CipherOutput;
     fn open(
         &self,
         output: &mut [u8],
@@ -256,7 +275,35 @@ pub struct CipherOutput {
     pub mac: Vec<u8>,
 }
 
-impl Cipher for Box<dyn Cipher> {
+impl<T: Cipher> ObjectSafeCipher for CipherObject<T> {
+    fn key_len(&self) -> usize {
+        T::KEY_LEN
+    }
+
+    fn nonce_len(&self) -> usize {
+        T::NONCE_LEN
+    }
+
+    fn mac_len(&self) -> usize {
+        T::MAC_LEN
+    }
+
+    fn seal(&self, message: &[u8], nonce: &[u8], key: &[u8]) -> CipherOutput {
+        T::seal(message, nonce, key)
+    }
+
+    fn open(
+        &self,
+        output: &mut [u8],
+        encrypted: &CipherOutput,
+        nonce: &[u8],
+        key: &[u8],
+    ) -> Result<(), ()> {
+        T::open(output, encrypted, nonce, key)
+    }
+}
+
+impl ObjectSafeCipher for Box<dyn ObjectSafeCipher> {
     fn key_len(&self) -> usize {
         (**self).key_len()
     }
@@ -357,6 +404,11 @@ pub enum Error {
 /// [`ErasedPwBox`]: struct.ErasedPwBox.html
 #[derive(Debug)]
 pub struct PwBox<K, C> {
+    inner: PwBoxInner<K, CipherObject<C>>,
+}
+
+#[derive(Debug)]
+struct PwBoxInner<K, C> {
     salt: Vec<u8>,
     nonce: Vec<u8>,
     encrypted: CipherOutput,
@@ -365,23 +417,83 @@ pub struct PwBox<K, C> {
 }
 
 /// Password-encrypted box restored by `Eraser`.
-pub type RestoredPwBox = PwBox<Box<dyn DeriveKey>, Box<dyn Cipher>>;
+pub struct RestoredPwBox {
+    inner: PwBoxInner<Box<dyn DeriveKey>, Box<dyn ObjectSafeCipher>>,
+}
 
-impl<K: DeriveKey + Default, C: Cipher + Default> PwBox<K, C> {
+impl fmt::Debug for RestoredPwBox {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("RestoredPwBox").finish()
+    }
+}
+
+// `is_empty()` method wouldn't make much sense; in *all* valid use cases, `len() > 0`.
+#[cfg_attr(feature = "cargo-clippy", allow(len_without_is_empty))]
+impl RestoredPwBox {
+    /// Returns the byte size of the encrypted data stored in this box.
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
+    /// Decrypts the box into the specified container.
+    ///
+    /// This method should be preferred to `open()` if the `output` type implements
+    /// zeroing on drop (e.g., cryptographic secrets from `sodiumoxide`).
+    pub fn open_into(
+        &self,
+        output: impl AsMut<[u8]>,
+        password: impl AsRef<[u8]>,
+    ) -> Result<(), Error> {
+        self.inner.open_into(output, password)
+    }
+
+    /// Decrypts the box and returns its contents. The returned container is zeroed on drop
+    /// and derefs to a byte slice.
+    pub fn open(&self, password: impl AsRef<[u8]>) -> Result<SensitiveData, Error> {
+        self.inner.open(password)
+    }
+}
+
+impl<K: DeriveKey + Default, C: Cipher> PwBox<K, C> {
     /// Creates a new box by using default settings of the supplied KDF.
     pub fn new<R: RngCore + CryptoRng>(
         rng: &mut R,
         password: impl AsRef<[u8]>,
         message: impl AsRef<[u8]>,
     ) -> Result<Self, Box<dyn Fail>> {
-        let (kdf, cipher) = (K::default(), C::default());
-        Self::seal(kdf, cipher, rng, password, message)
+        let (kdf, cipher) = (K::default(), CipherObject::default());
+        PwBoxInner::seal(kdf, cipher, rng, password, message).map(|inner| PwBox { inner })
     }
 }
 
 // `is_empty()` method wouldn't make much sense; in *all* valid use cases, `len() > 0`.
 #[cfg_attr(feature = "cargo-clippy", allow(len_without_is_empty))]
 impl<K: DeriveKey, C: Cipher> PwBox<K, C> {
+    /// Returns the byte size of the encrypted data stored in this box.
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
+    /// Decrypts the box into the specified container.
+    ///
+    /// This method should be preferred to `open()` if the `output` type implements
+    /// zeroing on drop (e.g., cryptographic secrets from `sodiumoxide`).
+    pub fn open_into(
+        &self,
+        output: impl AsMut<[u8]>,
+        password: impl AsRef<[u8]>,
+    ) -> Result<(), Error> {
+        self.inner.open_into(output, password)
+    }
+
+    /// Decrypts the box and returns its contents. The returned container is zeroed on drop
+    /// and derefs to a byte slice.
+    pub fn open(&self, password: impl AsRef<[u8]>) -> Result<SensitiveData, Error> {
+        self.inner.open(password)
+    }
+}
+
+impl<K: DeriveKey, C: ObjectSafeCipher> PwBoxInner<K, C> {
     fn seal<R: RngCore + ?Sized>(
         kdf: K,
         cipher: C,
@@ -400,7 +512,7 @@ impl<K: DeriveKey, C: Cipher> PwBox<K, C> {
         kdf.derive_key(&mut *key.0, password.as_ref(), &*salt)?;
 
         let encrypted = cipher.seal(message.as_ref(), &*nonce, &*key);
-        Ok(PwBox {
+        Ok(PwBoxInner {
             salt: salt[..].to_vec(),
             nonce: nonce[..].to_vec(),
             encrypted,
@@ -409,16 +521,11 @@ impl<K: DeriveKey, C: Cipher> PwBox<K, C> {
         })
     }
 
-    /// Returns the byte size of the encrypted data stored in this box.
-    pub fn len(&self) -> usize {
+    fn len(&self) -> usize {
         self.encrypted.ciphertext.len()
     }
 
-    /// Decrypts the box into the specified container.
-    ///
-    /// This method should be preferred to `open()` if the `output` type implements
-    /// zeroing on drop (e.g., cryptographic secrets from `sodiumoxide`).
-    pub fn open_into(
+    fn open_into(
         &self,
         mut output: impl AsMut<[u8]>,
         password: impl AsRef<[u8]>,
@@ -444,7 +551,7 @@ impl<K: DeriveKey, C: Cipher> PwBox<K, C> {
 
     /// Decrypts the box and returns its contents. The returned container is zeroed on drop
     /// and derefs to a byte slice.
-    pub fn open(&self, password: impl AsRef<[u8]>) -> Result<SensitiveData, Error> {
+    fn open(&self, password: impl AsRef<[u8]>) -> Result<SensitiveData, Error> {
         let mut output = SensitiveData::zeros(self.len());
         self.open_into(&mut *output.0, password).map(|()| output)
     }
@@ -468,7 +575,7 @@ impl<'a, K, C> fmt::Debug for PwBoxBuilder<'a, K, C> {
 impl<'a, K, C> PwBoxBuilder<'a, K, C>
 where
     K: DeriveKey + Clone + Default,
-    C: Cipher + Default,
+    C: Cipher,
 {
     /// Initializes the builder with a random number generator.
     pub fn new<R: RngCore + CryptoRng>(rng: &'a mut R) -> Self {
@@ -491,9 +598,9 @@ where
         password: impl AsRef<[u8]>,
         data: impl AsRef<[u8]>,
     ) -> Result<PwBox<K, C>, Box<dyn Fail>> {
-        let cipher = C::default();
+        let cipher: CipherObject<C> = Default::default();
         let kdf = self.kdf.clone().unwrap_or_default();
-        PwBox::seal(kdf, cipher, self.rng, password, data)
+        PwBoxInner::seal(kdf, cipher, self.rng, password, data).map(|inner| PwBox { inner })
     }
 }
 
@@ -503,7 +610,7 @@ where
 pub fn test_kdf_and_cipher<K, C>(kdf: K)
 where
     K: DeriveKey + Clone + Default,
-    C: Cipher + Default,
+    C: Cipher,
 {
     use rand::thread_rng;
 
@@ -517,5 +624,6 @@ where
         .kdf(kdf)
         .seal(PASSWORD, &message)
         .unwrap();
+    assert_eq!(message.len(), pwbox.len());
     assert_eq!(message, &*pwbox.open(PASSWORD).unwrap());
 }

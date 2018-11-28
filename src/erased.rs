@@ -19,7 +19,10 @@ use serde_json::{self, Error as JsonError, Value as JsonValue};
 
 use std::{any::TypeId, collections::HashMap, fmt};
 
-use {Cipher, CipherOutput, DeriveKey, Error, PwBox, PwBoxBuilder, RestoredPwBox};
+use {
+    Cipher, CipherObject, CipherOutput, DeriveKey, Error, ObjectSafeCipher, PwBox, PwBoxBuilder,
+    PwBoxInner, RestoredPwBox,
+};
 
 /// Password-encrypted box suitable for (de)serialization.
 ///
@@ -87,7 +90,7 @@ struct CipherParams {
     iv: Vec<u8>,
 }
 
-type CipherFactory = Box<dyn Fn() -> Box<dyn Cipher>>;
+type CipherFactory = Box<dyn Fn() -> Box<dyn ObjectSafeCipher>>;
 type KdfFactory = Box<dyn Fn(JsonValue) -> Result<Box<dyn DeriveKey>, JsonError>>;
 
 /// Helper structure to convert password-encrypted boxes to a serializable format and back.
@@ -165,9 +168,12 @@ impl Eraser {
     /// is already registered.
     pub fn add_cipher<C>(&mut self, cipher_name: &str) -> &mut Self
     where
-        C: Cipher + Default,
+        C: Cipher,
     {
-        let factory = || Box::new(C::default()) as Box<dyn Cipher>;
+        let factory = || {
+            let cipher_object: CipherObject<C> = Default::default();
+            Box::new(cipher_object) as Box<dyn ObjectSafeCipher>
+        };
         let old_cipher = self
             .ciphers
             .insert(cipher_name.to_owned(), Box::new(factory));
@@ -269,11 +275,12 @@ impl Eraser {
             Some(cipher) => cipher,
             None => return Err(pwbox),
         };
-        let kdf_params = match serde_json::to_value(&pwbox.kdf) {
+        let kdf_params = match serde_json::to_value(&pwbox.inner.kdf) {
             Ok(params) => params,
             Err(_) => return Err(pwbox),
         };
 
+        let pwbox = pwbox.inner;
         Ok(ErasedPwBox {
             encrypted: pwbox.encrypted,
             kdf: kdf.to_owned(),
@@ -309,20 +316,21 @@ impl Eraser {
             return Err(Error::MacLen);
         }
 
-        Ok(PwBox {
+        let inner = PwBoxInner {
             salt: erased.kdf_params.salt.clone(),
             nonce: erased.cipher_params.iv.clone(),
             encrypted: erased.encrypted.clone(),
             kdf,
             cipher,
-        })
+        };
+        Ok(RestoredPwBox { inner })
     }
 }
 
 /// Cryptographic suite providing ciphers and KDFs for password-based encryption.
 pub trait Suite {
     /// Recommended cipher for this suite.
-    type Cipher: Cipher + Clone + Default;
+    type Cipher: Cipher;
     /// Recommended KDF for this suite.
     type DeriveKey: DeriveKey + Clone + Default;
 
@@ -343,7 +351,7 @@ pub trait Suite {
 pub fn test_kdf_and_cipher_corruption<K, C>(kdf: K)
 where
     K: DeriveKey + Clone + Default + Serialize + DeserializeOwned,
-    C: Cipher + Default,
+    C: Cipher,
 {
     use rand::thread_rng;
 
@@ -448,5 +456,6 @@ fn erase_pwbox() {
 
     let erased = eraser.erase(pwbox).unwrap();
     let pwbox_copy = eraser.restore(&erased).unwrap();
+    assert_eq!(MESSAGE.len(), pwbox_copy.len());
     assert_eq!(MESSAGE, &*pwbox_copy.open(PASSWORD).unwrap());
 }
