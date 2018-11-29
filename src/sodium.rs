@@ -153,20 +153,6 @@ mod tests {
     use {erased::test_kdf_and_cipher_corruption, test_kdf_and_cipher};
 
     #[test]
-    fn basics() {
-        use rand::thread_rng;
-        use PwBox;
-
-        const PASSWORD: &str = "correct horse battery staple";
-        const MESSAGE: &[u8] = b"foobar";
-
-        let pwbox =
-            PwBox::<Scrypt, XSalsa20Poly1305>::new(&mut thread_rng(), PASSWORD, MESSAGE).unwrap();
-
-        assert_eq!(MESSAGE, &*pwbox.open(PASSWORD).unwrap());
-    }
-
-    #[test]
     fn scrypt_and_salsa() {
         let scrypt = Scrypt::light();
         test_kdf_and_cipher::<_, XSalsa20Poly1305>(scrypt);
