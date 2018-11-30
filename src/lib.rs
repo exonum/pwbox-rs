@@ -424,4 +424,10 @@ where
         .unwrap();
     assert_eq!(message.len(), pwbox.len());
     assert_eq!(message, &*pwbox.open(PASSWORD).unwrap());
+
+    let mut buffer = [0_u8; 64];
+    // As [u8; 64] does not implement AsMut<[u8]> (the array length is larger than
+    // the stopgap threshold 32), we need to index it explicitly.
+    pwbox.open_into(&mut buffer[..], PASSWORD).unwrap();
+    assert_eq!(buffer[..], *message);
 }
