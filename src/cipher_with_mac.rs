@@ -14,6 +14,8 @@
 
 //! Utilities for constructing `Cipher` from an unauthenticated symmetric cipher and a MAC.
 
+use constant_time_eq::constant_time_eq;
+
 use std::marker::PhantomData;
 
 use {Cipher, CipherOutput};
@@ -65,44 +67,6 @@ pub struct CipherWithMac<C, M> {
     _mac: PhantomData<M>,
 }
 
-#[cfg(feature = "exonum_sodiumoxide")]
-fn fixed_time_eq(lhs: &[u8], rhs: &[u8]) -> bool {
-    extern crate exonum_sodiumoxide as sodiumoxide;
-    sodiumoxide::utils::memcmp(lhs, rhs)
-}
-
-#[cfg(all(not(feature = "exonum_sodiumoxide"), feature = "rust-crypto"))]
-fn fixed_time_eq(lhs: &[u8], rhs: &[u8]) -> bool {
-    extern crate crypto;
-    crypto::util::fixed_time_eq(lhs, rhs)
-}
-
-// FIXME: This function *seems* to be constant-time (see the `eq` benchmark)
-// and is straightforward mapping of the technique used in `rust-crypto`.
-// However it's not precisely clear whether it is actually secure, so it's used as
-// a last resort.
-#[cfg(all(
-    not(feature = "exonum_sodiumoxide"),
-    not(feature = "rust-crypto")
-))]
-fn fixed_time_eq(lhs: &[u8], rhs: &[u8]) -> bool {
-    // Not inlining is crucial: we cannot let the compiler find out that we only ever
-    // compare the output to a fixed value (0).
-    #[inline(never)]
-    fn accumulated_diff(x: &[u8], y: &[u8]) -> u8 {
-        if x.len() != y.len() {
-            1
-        } else {
-            x.iter()
-                .zip(y.iter())
-                .map(|(a, b)| a ^ b)
-                .fold(0, |acc, a| acc | a)
-        }
-    }
-
-    accumulated_diff(x, y) == 0
-}
-
 impl<C, M> Cipher for CipherWithMac<C, M>
 where
     C: UnauthenticatedCipher,
@@ -144,7 +108,7 @@ where
         debug_assert_eq!(output.len(), enc.ciphertext.len());
 
         let (cipher_key, mac_key) = (&key[..C::KEY_LEN], &key[C::KEY_LEN..]);
-        if !fixed_time_eq(&M::digest(mac_key, &enc.ciphertext), &enc.mac) {
+        if !constant_time_eq(&M::digest(mac_key, &enc.ciphertext), &enc.mac) {
             return Err(());
         }
 

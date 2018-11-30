@@ -78,6 +78,7 @@
 #![deny(missing_docs, missing_debug_implementations)]
 
 extern crate clear_on_drop;
+extern crate constant_time_eq;
 #[macro_use]
 extern crate smallvec;
 extern crate failure;
