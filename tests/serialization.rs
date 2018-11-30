@@ -16,7 +16,9 @@
 
 extern crate pwbox;
 extern crate serde;
+extern crate serde_cbor;
 extern crate serde_json;
+extern crate serde_yaml;
 #[macro_use]
 extern crate serde_derive;
 extern crate rand;
@@ -26,6 +28,33 @@ use pwbox::{rcrypto::RustCrypto, sodium::Sodium, ErasedPwBox, Eraser, Suite};
 use rand::{thread_rng, Rng};
 
 const PASSWORD: &str = "correct horse battery staple";
+
+fn roundtrip<V, S, D>(serialize: S, deserialize: D)
+where
+    S: Fn(&ErasedPwBox) -> V,
+    D: Fn(&V) -> ErasedPwBox,
+{
+    let mut rng = thread_rng();
+    let secret: [u8; 32] = rng.gen();
+
+    let mut eraser = Eraser::new();
+    eraser.add_suite::<Sodium>();
+    let encrypted = Sodium::build_box(&mut rng).seal(PASSWORD, &secret).unwrap();
+    let encrypted = eraser.erase(&encrypted).unwrap();
+
+    let output = serialize(&encrypted);
+    let restored = deserialize(&output);
+    let restored = eraser.restore(&restored).unwrap();
+    assert_eq!(secret, &*restored.open(PASSWORD).unwrap());
+}
+
+#[test]
+fn json_roundtrip() {
+    roundtrip(
+        |pwbox| serde_json::to_string(pwbox).expect("serialize"),
+        |s| serde_json::from_str(s).expect("deserialize"),
+    );
+}
 
 #[test]
 fn json_serialization_compatibility() {
@@ -53,19 +82,52 @@ fn json_serialization_compatibility() {
 }
 
 #[test]
-fn toml_serialization() {
-    let mut rng = thread_rng();
-    let secret: [u8; 32] = rng.gen();
+fn yaml_roundtrip() {
+    roundtrip(
+        |pwbox| serde_yaml::to_string(pwbox).expect("serialize"),
+        |s| serde_yaml::from_str(s).expect("deserialize"),
+    );
+}
+
+#[test]
+fn yaml_serialization_example() {
+    const YAML: &str = r#"
+    secret:
+      kdf: scrypt-nacl
+      cipher: xsalsa20-poly1305
+      ciphertext: 6ebc1234418b494777d6e53f09f1c5a81b82d390ac0bf129c4dbb6a299ca4058
+      mac: 6fc1d3998030960a456436ce2ff3210c
+      kdfparams:
+        salt: d1946ce416f3c6d418a2db97a01e2427da87212bb4103c94ec78bb88103bf81c
+        memlimit: 16777216
+        opslimit: 524288
+      cipherparams:
+        iv: 80132c7db2994c3a9229247faac621b944e3e37f39aa4440
+    description: |
+      Super-secret key.
+      DO NOT decrypt.
+    "#;
+
+    #[derive(Deserialize)]
+    struct Container {
+        secret: ErasedPwBox,
+    }
 
     let mut eraser = Eraser::new();
     eraser.add_suite::<Sodium>();
-    let encrypted = Sodium::build_box(&mut rng).seal(PASSWORD, &secret).unwrap();
-    let encrypted = eraser.erase(&encrypted).unwrap();
 
-    let s = toml::to_string_pretty(&encrypted).unwrap();
-    let restored = toml::from_str(&s).unwrap();
-    let restored = eraser.restore(&restored).unwrap();
-    assert_eq!(secret, &*restored.open(PASSWORD).unwrap());
+    let restored: Container = serde_yaml::from_str(YAML).unwrap();
+    assert_eq!(restored.secret.len(), 32);
+    let restored = eraser.restore(&restored.secret).unwrap();
+    assert!(restored.open(PASSWORD).is_ok());
+}
+
+#[test]
+fn toml_serialization() {
+    roundtrip(
+        |pwbox| toml::to_string(pwbox).expect("serialize"),
+        |s| toml::from_str(s).expect("deserialize"),
+    );
 }
 
 #[test]
@@ -113,4 +175,12 @@ fn toml_deserialization_inner() {
     let test: Test<ErasedPwBox> = toml::from_str(TOML).unwrap();
     let decrypted_test = test.open(&eraser, PASSWORD).unwrap();
     assert_eq!(decrypted_test.key.len(), 32);
+}
+
+#[test]
+fn cbor_roundtrip() {
+    roundtrip(
+        |pwbox| serde_cbor::to_vec(pwbox).expect("serialize"),
+        |s| serde_cbor::from_slice(s).expect("deserialize"),
+    );
 }
