@@ -11,6 +11,10 @@ corresponding composable cryptographic primitives. Using the crate, it is
 possible to securely encrypt sensitive data with a password, serialize it
 to any `serde`-supported format, and restore data.
 
+**Warning.** Although `pwbox` is constructed analogously to an Ethereum keystore
+(and is compatible with it, see crate docs), no independent cryptology expertise has been conducted
+regarding its safety. Use at your own risk.
+
 ## Usage
 
 See crate documentation for more details how to use the crate.
