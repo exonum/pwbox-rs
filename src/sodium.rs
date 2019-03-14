@@ -84,7 +84,8 @@ impl DeriveKey for Scrypt {
             &Salt::from_slice(salt).expect("invalid salt length"),
             OpsLimit(self.opslimit as usize),
             MemLimit(self.memlimit as usize),
-        ).map(drop)
+        )
+        .map(drop)
         .map_err(|()| Box::new(ScryptError) as Box<dyn Fail>)
     }
 }
