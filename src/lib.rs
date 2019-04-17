@@ -280,7 +280,7 @@ impl<K: DeriveKey + Default, C: Cipher> PwBox<K, C> {
 }
 
 // `is_empty()` method wouldn't make much sense; in *all* valid use cases, `len() > 0`.
-#[cfg_attr(feature = "cargo-clippy", allow(len_without_is_empty))]
+#[cfg_attr(feature = "cargo-clippy", allow(clippy::len_without_is_empty))]
 impl<K: DeriveKey, C: Cipher> PwBox<K, C> {
     /// Returns the byte size of the encrypted data stored in this box.
     pub fn len(&self) -> usize {
@@ -323,7 +323,7 @@ impl fmt::Debug for RestoredPwBox {
 }
 
 // `is_empty()` method wouldn't make much sense; in *all* valid use cases, `len() > 0`.
-#[cfg_attr(feature = "cargo-clippy", allow(len_without_is_empty))]
+#[cfg_attr(feature = "cargo-clippy", allow(clippy::len_without_is_empty))]
 impl RestoredPwBox {
     /// Returns the byte size of the encrypted data stored in this box.
     pub fn len(&self) -> usize {

@@ -68,7 +68,7 @@ pub struct ErasedPwBox {
 }
 
 // `is_empty()` method wouldn't make much sense; in *all* valid use cases, `len() > 0`.
-#[cfg_attr(feature = "cargo-clippy", allow(len_without_is_empty))]
+#[cfg_attr(feature = "cargo-clippy", allow(clippy::len_without_is_empty))]
 impl ErasedPwBox {
     /// Returns the byte size of the encrypted data stored in this box.
     pub fn len(&self) -> usize {
