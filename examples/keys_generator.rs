@@ -1,4 +1,4 @@
-// Copyright 2018 The Exonum Team
+// Copyright 2019 The Exonum Team
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,12 +19,12 @@
 extern crate serde_derive;
 
 use exonum_sodiumoxide::crypto::sign::{
-    gen_keypair, keypair_from_seed, PublicKey, SecretKey, Seed, SEEDBYTES,
+    convert_sk_to_pk, keypair_from_seed, PublicKey, SecretKey, Seed, SEEDBYTES,
 };
 use hex_buffer_serde::Hex;
 use pwbox::{sodium::Sodium, ErasedPwBox, Eraser, RestoredPwBox, Suite};
 use rand::thread_rng;
-use std::borrow::Cow;
+use std::{borrow::Cow, env::args};
 
 enum PublicKeyHex {}
 
@@ -79,9 +79,9 @@ impl Keypair<RestoredPwBox> {
 }
 
 impl Keypair<SecretKey> {
-    pub fn new() -> Self {
-        let (public_key, secret_key) = gen_keypair();
-        Keypair {
+    pub fn new(secret_key: SecretKey) -> Self {
+        let public_key = convert_sk_to_pk(&secret_key);
+        Self {
             public_key,
             secret_key,
         }
@@ -106,27 +106,16 @@ fn main() {
     let mut eraser = Eraser::new();
     eraser.add_suite::<Sodium>();
 
-    // Create a random keypair.
-    let keypair = Keypair::new();
-    println!(
-        "Original secret key: {}",
-        hex::encode(&keypair.secret_key[..])
-    );
+    let sk = args().nth(1).expect("You should to provide a SecretKey");
+    let passphrase = args().nth(2).expect("You should to provide a passphrase");
+    let secret_key =
+        SecretKey::from_slice(&hex::decode(sk).unwrap()).expect("Wrong format of the SecretKey");
+
+    // Create a random keypair from seed.
+    let keypair = Keypair::new(secret_key);
 
     // Serialize the keypair into TOML.
-    let password = "correct horse battery staple";
-    let keypair = keypair.encrypt(password, &eraser);
+    let keypair = keypair.encrypt(passphrase.as_str(), &eraser);
     let toml = toml::to_string_pretty(&keypair).unwrap();
-    println!(
-        "======== Keypair ========\n{}======== End keypair ========",
-        toml
-    );
-
-    // Deserialize the keypair back.
-    let keypair: Keypair<ErasedPwBox> = toml::from_str(&toml).unwrap();
-    let keypair = keypair.restore(&eraser).decrypt(password);
-    println!(
-        "Restored secret key: {}",
-        hex::encode(&keypair.secret_key[..])
-    );
+    println!("{}", toml);
 }

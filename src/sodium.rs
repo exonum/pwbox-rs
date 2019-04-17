@@ -14,9 +14,7 @@
 
 //! Crypto primitives based on `libsodium`.
 
-extern crate exonum_sodiumoxide as sodiumoxide;
-
-use self::sodiumoxide::crypto::{
+use exonum_sodiumoxide::crypto::{
     pwhash::{
         self, derive_key, MemLimit, OpsLimit, Salt, MEMLIMIT_INTERACTIVE, OPSLIMIT_INTERACTIVE,
     },
@@ -150,8 +148,11 @@ impl Suite for Sodium {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use {erased::test_kdf_and_cipher_corruption, test_kdf_and_cipher};
+    use crate::{
+        erased::test_kdf_and_cipher_corruption,
+        sodium::{Scrypt, XSalsa20Poly1305},
+        test_kdf_and_cipher,
+    };
 
     #[test]
     fn scrypt_and_salsa() {

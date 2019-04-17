@@ -19,7 +19,7 @@ use serde_json::{self, Error as JsonError, Value as JsonValue};
 
 use std::{any::TypeId, collections::HashMap, fmt};
 
-use {
+use crate::{
     traits::{CipherObject, ObjectSafeCipher},
     Cipher, CipherOutput, DeriveKey, Error, PwBox, PwBoxBuilder, PwBoxInner, RestoredPwBox,
 };
@@ -458,8 +458,8 @@ where
 #[cfg(feature = "exonum_sodiumoxide")]
 #[test]
 fn erase_pwbox() {
+    use crate::sodium::{Scrypt, XSalsa20Poly1305};
     use rand::thread_rng;
-    use sodium::{Scrypt, XSalsa20Poly1305};
 
     const PASSWORD: &str = "correct horse battery staple";
     const MESSAGE: &[u8] = b"1234567890";

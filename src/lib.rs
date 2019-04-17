@@ -77,19 +77,12 @@
 
 #![deny(missing_docs, missing_debug_implementations)]
 
-extern crate clear_on_drop;
-extern crate constant_time_eq;
 #[macro_use]
 extern crate smallvec;
-extern crate failure;
 #[macro_use]
 extern crate failure_derive;
-extern crate rand_core;
-extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate hex_buffer_serde;
-extern crate serde_json;
 
 // Crates for testing.
 #[cfg(test)]

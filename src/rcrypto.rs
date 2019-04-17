@@ -14,20 +14,20 @@
 
 //! `rust-crypto` cryptographic backend.
 
-extern crate crypto as rcrypto;
-
-use self::rcrypto::{
+use clear_on_drop::ClearOnDrop;
+use crypto::{
     aead::{AeadDecryptor, AeadEncryptor},
     aes, aes_gcm,
     digest::Digest,
     scrypt::{scrypt, ScryptParams},
     sha3::Sha3,
 };
-use clear_on_drop::ClearOnDrop;
 use failure::Fail;
 
-use utils::log_transform::LogNTransform;
-use {Cipher, CipherOutput, CipherWithMac, DeriveKey, Eraser, Mac, Suite, UnauthenticatedCipher};
+use crate::utils::log_transform::LogNTransform;
+use crate::{
+    Cipher, CipherOutput, CipherWithMac, DeriveKey, Eraser, Mac, Suite, UnauthenticatedCipher,
+};
 
 /// AES-128 cipher in CTR mode.
 ///
@@ -95,8 +95,7 @@ impl Mac for Keccak256 {
 /// for more details on what they mean.
 ///
 /// ```
-/// #[macro_use] extern crate serde_json;
-/// # extern crate pwbox;
+/// use serde_json::json;
 /// # use pwbox::rcrypto::Scrypt;
 ///
 /// let scrypt = Scrypt::default();
@@ -220,8 +219,6 @@ impl Cipher for Aes128Gcm {
 /// This suite can be used for compatibility with Ethereum keystores.
 ///
 /// ```
-/// # extern crate rand;
-/// # extern crate pwbox;
 /// use rand::thread_rng;
 /// use pwbox::{Eraser, ErasedPwBox, Suite, rcrypto::RustCrypto};
 /// # use pwbox::{Error, rcrypto::Scrypt};
@@ -264,7 +261,10 @@ impl Suite for RustCrypto {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use {erased::test_kdf_and_cipher_corruption, test_kdf_and_cipher, ErasedPwBox};
+    use crate::{
+        erased::{test_kdf_and_cipher_corruption, ErasedPwBox},
+        test_kdf_and_cipher,
+    };
 
     #[test]
     fn aes_with_keccak_mac() {
