@@ -15,15 +15,14 @@
 //! Password-based encryption example for securely storing an Ed25519 keypair.
 //! For simplicity, errors during processing lead to panics.
 
-#[macro_use]
-extern crate serde_derive;
-
 use exonum_sodiumoxide::crypto::sign::{
     convert_sk_to_pk, keypair_from_seed, PublicKey, SecretKey, Seed, SEEDBYTES,
 };
 use hex_buffer_serde::Hex;
 use pwbox::{sodium::Sodium, ErasedPwBox, Eraser, RestoredPwBox, Suite};
 use rand::thread_rng;
+use serde_derive::*;
+
 use std::{borrow::Cow, env::args};
 
 enum PublicKeyHex {}
