@@ -23,6 +23,7 @@ use crypto::{
     sha3::Sha3,
 };
 use failure::Fail;
+use serde_derive::*;
 
 use crate::utils::log_transform::LogNTransform;
 use crate::{
@@ -135,7 +136,7 @@ impl Scrypt {
     /// ```text
     /// n = 2^12, r = 8, p = 6.
     /// ```
-    pub fn light() -> Self {
+    pub const fn light() -> Self {
         Scrypt {
             log_n: 12,
             r: 8,
@@ -147,7 +148,7 @@ impl Scrypt {
     ///
     /// The `r` parameter is always set to 8 as per libsodium conversion
     /// from `opslimit` / `memlimit` and per Ethereum keystore implementations.
-    pub fn custom(log_n: u8, p: u32) -> Self {
+    pub const fn custom(log_n: u8, p: u32) -> Self {
         Scrypt { log_n, p, r: 8 }
     }
 }
@@ -340,7 +341,6 @@ mod tests {
 
     #[test]
     fn ethstore_compatibility() {
-        extern crate hex;
         use serde_json;
 
         const PASSWORD: &str = "foo";

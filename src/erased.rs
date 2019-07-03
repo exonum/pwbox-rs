@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use failure_derive::*;
 use hex_buffer_serde::{Hex as _Hex, HexForm};
 use rand_core::{CryptoRng, RngCore};
 use serde::{de::DeserializeOwned, Serialize};
+use serde_derive::*;
 use serde_json::{self, Error as JsonError, Value as JsonValue};
 
 use std::{any::TypeId, collections::HashMap, fmt};
@@ -32,8 +34,6 @@ use crate::{
 /// is serialized as the following structure:
 ///
 /// ```
-/// extern crate toml;
-/// # extern crate pwbox;
 /// # use pwbox::{Eraser, sodium::Sodium};
 ///
 /// const TOML: &str = r#"
@@ -68,7 +68,7 @@ pub struct ErasedPwBox {
 }
 
 // `is_empty()` method wouldn't make much sense; in *all* valid use cases, `len() > 0`.
-#[cfg_attr(feature = "cargo-clippy", allow(clippy::len_without_is_empty))]
+#[allow(clippy::len_without_is_empty)]
 impl ErasedPwBox {
     /// Returns the byte size of the encrypted data stored in this box.
     pub fn len(&self) -> usize {
@@ -114,8 +114,6 @@ pub enum EraseError {
 /// # Examples
 ///
 /// ```
-/// # extern crate pwbox;
-/// # extern crate rand;
 /// # #[cfg(all(feature = "exonum_sodiumoxide", feature = "rust-crypto"))]
 /// # fn main() {
 /// # use rand::thread_rng;
@@ -371,6 +369,7 @@ where
     K: DeriveKey + Clone + Default + Serialize + DeserializeOwned,
     C: Cipher,
 {
+    use assert_matches::assert_matches;
     use rand::thread_rng;
 
     const PASSWORD: &str = "correct horse battery staple";

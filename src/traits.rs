@@ -15,7 +15,8 @@
 //! Traits for core crypto primitives used in `PwBox`.
 
 use failure::Fail;
-use hex_buffer_serde::{Hex as _Hex, HexForm};
+use hex_buffer_serde::{Hex as _, HexForm};
+use serde_derive::*;
 
 use std::marker::PhantomData;
 

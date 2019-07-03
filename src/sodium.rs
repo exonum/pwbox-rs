@@ -17,10 +17,12 @@
 use exonum_sodiumoxide::crypto::{
     pwhash::{
         self, derive_key, MemLimit, OpsLimit, Salt, MEMLIMIT_INTERACTIVE, OPSLIMIT_INTERACTIVE,
+        OPSLIMIT_SENSITIVE, MEMLIMIT_SENSITIVE,
     },
     secretbox::{self, open_detached, seal_detached, Key, Nonce, Tag},
 };
 use failure::Fail;
+use serde_derive::*;
 
 use super::{Cipher, CipherOutput, DeriveKey, Eraser, Suite};
 
@@ -44,19 +46,32 @@ pub struct Scrypt {
 impl Default for Scrypt {
     /// Returns the "interactive" `scrypt` parameters as defined in libsodium.
     fn default() -> Self {
+        Self::interactive()
+    }
+}
+
+impl Scrypt {
+    /// Returns the "interactive" `scrypt` parameters as defined in libsodium.
+    pub const fn interactive() -> Self {
         Scrypt {
             opslimit: OPSLIMIT_INTERACTIVE.0 as u32,
             memlimit: MEMLIMIT_INTERACTIVE.0 as u32,
         }
     }
-}
 
-impl Scrypt {
     /// Returns "light" `scrypt` parameters as used in Ethereum keystore implementations.
-    pub fn light() -> Self {
+    pub const fn light() -> Self {
         Scrypt {
             opslimit: 3 << 18,
             memlimit: 1 << 22,
+        }
+    }
+
+    /// Returns the "sensitive" `scrypt` parameters as defined in libsodium.
+    pub const fn sensitive() -> Self {
+        Scrypt {
+            opslimit: OPSLIMIT_SENSITIVE.0 as u32,
+            memlimit: MEMLIMIT_SENSITIVE.0 as u32,
         }
     }
 }

@@ -15,15 +15,14 @@
 //! Password-based encryption example for securely storing an Ed25519 keypair.
 //! For simplicity, errors during processing lead to panics.
 
-#[macro_use]
-extern crate serde_derive;
-
 use exonum_sodiumoxide::crypto::sign::{
     gen_keypair, keypair_from_seed, PublicKey, SecretKey, Seed, SEEDBYTES,
 };
 use hex_buffer_serde::Hex;
 use pwbox::{sodium::Sodium, ErasedPwBox, Eraser, RestoredPwBox, Suite};
 use rand::thread_rng;
+use serde_derive::*;
+
 use std::borrow::Cow;
 
 enum PublicKeyHex {}
@@ -79,6 +78,7 @@ impl Keypair<RestoredPwBox> {
 }
 
 impl Keypair<SecretKey> {
+    #[allow(clippy::new_without_default)] // `Default` impl doesn't make sense semantically
     pub fn new() -> Self {
         let (public_key, secret_key) = gen_keypair();
         Keypair {

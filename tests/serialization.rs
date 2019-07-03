@@ -14,18 +14,10 @@
 
 //! Test suite for different supported serialization formats.
 
-extern crate pwbox;
-extern crate serde;
-extern crate serde_cbor;
-extern crate serde_json;
-extern crate serde_yaml;
-#[macro_use]
-extern crate serde_derive;
-extern crate rand;
-extern crate toml;
+use rand::{thread_rng, Rng};
+use serde_derive::*;
 
 use pwbox::{rcrypto::RustCrypto, sodium::Sodium, ErasedPwBox, Eraser, Suite};
-use rand::{thread_rng, Rng};
 
 const PASSWORD: &str = "correct horse battery staple";
 

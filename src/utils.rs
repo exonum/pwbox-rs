@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use clear_on_drop::ClearOnDrop;
-use smallvec::SmallVec;
+use smallvec::{smallvec, SmallVec};
 
 use std::{fmt, ops::Deref};
 
@@ -73,7 +73,7 @@ pub mod log_transform {
 
     #[cfg(feature = "rust-crypto")]
     impl LogNTransform {
-        #[cfg_attr(feature = "cargo-clippy", allow(trivially_copy_pass_by_ref))]
+        #[allow(clippy::trivially_copy_pass_by_ref)]
         pub fn serialize<S: Serializer>(value: &u8, serializer: S) -> Result<S::Ok, S::Error> {
             assert!(*value < 32, "too large value to serialize: {}", value);
             serializer.serialize_u64(1 << u64::from(*value))
@@ -109,6 +109,7 @@ pub mod log_transform {
     #[test]
     fn log2_transform() {
         use serde_json::{self, Value};
+        use serde_derive::*;
 
         #[derive(Serialize, Deserialize)]
         struct Test {

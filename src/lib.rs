@@ -49,25 +49,22 @@
 //! Using the `Sodium` cryptosuite:
 //!
 //! ```
-//! # extern crate rand;
-//! # extern crate pwbox;
-//! extern crate serde_json;
+//! # use failure::Error;
 //! use rand::thread_rng;
 //! use pwbox::{Eraser, ErasedPwBox, Suite, sodium::Sodium};
-//! # use pwbox::{Error, sodium::Scrypt};
+//! # use pwbox::sodium::Scrypt;
 //!
 //! # fn main() -> Result<(), Error> {
 //! // Create a new box.
 //! let pwbox = Sodium::build_box(&mut thread_rng())
 //! #   .kdf(Scrypt::light())
-//!     .seal(b"correct horse", b"battery staple")
-//!     .unwrap();
+//!     .seal(b"correct horse", b"battery staple")?;
 //!
 //! // Serialize box.
 //! let mut eraser = Eraser::new();
 //! eraser.add_suite::<Sodium>();
-//! let erased: ErasedPwBox = eraser.erase(&pwbox).unwrap();
-//! println!("{}", serde_json::to_string_pretty(&erased).unwrap());
+//! let erased: ErasedPwBox = eraser.erase(&pwbox)?;
+//! println!("{}", serde_json::to_string_pretty(&erased)?);
 //! // Deserialize box back.
 //! let plaintext = eraser.restore(&erased)?.open(b"correct horse")?;
 //! assert_eq!(&*plaintext, b"battery staple");
@@ -76,20 +73,6 @@
 //! ```
 
 #![deny(missing_docs, missing_debug_implementations)]
-
-#[macro_use]
-extern crate smallvec;
-#[macro_use]
-extern crate failure_derive;
-#[macro_use]
-extern crate serde_derive;
-
-// Crates for testing.
-#[cfg(test)]
-extern crate rand;
-#[cfg(test)]
-#[macro_use]
-extern crate assert_matches;
 
 use failure::Fail;
 use rand_core::{CryptoRng, RngCore};
@@ -280,7 +263,7 @@ impl<K: DeriveKey + Default, C: Cipher> PwBox<K, C> {
 }
 
 // `is_empty()` method wouldn't make much sense; in *all* valid use cases, `len() > 0`.
-#[cfg_attr(feature = "cargo-clippy", allow(clippy::len_without_is_empty))]
+#[allow(clippy::len_without_is_empty)]
 impl<K: DeriveKey, C: Cipher> PwBox<K, C> {
     /// Returns the byte size of the encrypted data stored in this box.
     pub fn len(&self) -> usize {
@@ -323,7 +306,7 @@ impl fmt::Debug for RestoredPwBox {
 }
 
 // `is_empty()` method wouldn't make much sense; in *all* valid use cases, `len() > 0`.
-#[cfg_attr(feature = "cargo-clippy", allow(clippy::len_without_is_empty))]
+#[allow(clippy::len_without_is_empty)]
 impl RestoredPwBox {
     /// Returns the byte size of the encrypted data stored in this box.
     pub fn len(&self) -> usize {
