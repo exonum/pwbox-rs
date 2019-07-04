@@ -16,8 +16,8 @@
 
 use exonum_sodiumoxide::crypto::{
     pwhash::{
-        self, derive_key, MemLimit, OpsLimit, Salt, MEMLIMIT_INTERACTIVE, OPSLIMIT_INTERACTIVE,
-        OPSLIMIT_SENSITIVE, MEMLIMIT_SENSITIVE,
+        self, derive_key, MemLimit, OpsLimit, Salt, MEMLIMIT_INTERACTIVE, MEMLIMIT_SENSITIVE,
+        OPSLIMIT_INTERACTIVE, OPSLIMIT_SENSITIVE,
     },
     secretbox::{self, open_detached, seal_detached, Key, Nonce, Tag},
 };
