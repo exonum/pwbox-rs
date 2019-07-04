@@ -1,0 +1,20 @@
+description = 'Example input for `key-util` testing'
+some_integers = [
+  1111,
+  22222,
+  333333333,
+]
+
+[master_key]
+ciphertext = '7c19e92bbeaee93942a85449'
+mac = '91605ee7b927b7399fe64b56d4837660'
+kdf = 'scrypt-nacl'
+cipher = 'xsalsa20-poly1305'
+
+[master_key.kdfparams]
+salt = '0b6a9a5542a4759f9bf0a5765ee506c933f16ceeca5aede4e503c64306f1489c'
+memlimit = 16777216
+opslimit = 524288
+
+[master_key.cipherparams]
+iv = '61b236a69b42425ddc40d3a97771b388d52f2a9de4c9f351'
