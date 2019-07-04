@@ -48,12 +48,13 @@ install:
 
 script:
 - cargo fmt -- --check
-- cargo check --all-features --tests --examples
 - cargo clippy --all-features --tests --examples -- -D warnings
+- cargo check --all-features --tests --examples
 - cargo test --tests --all-features
 - cargo test --doc --all-features
 - cargo run --example sodium_keypair > /dev/null
 - cargo clean --doc && cargo doc --all-features --no-deps && cargo deadlinks --dir target/doc
+- bash tests/e2e/key_util.sh
 
 deploy:
   provider: pages
