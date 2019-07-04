@@ -108,8 +108,8 @@ pub mod log_transform {
 
     #[test]
     fn log2_transform() {
-        use serde_json::{self, Value};
         use serde_derive::*;
+        use serde_json::{self, Value};
 
         #[derive(Serialize, Deserialize)]
         struct Test {
