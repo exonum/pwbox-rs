@@ -269,8 +269,7 @@ mod tests {
 
     #[test]
     fn aes_with_keccak_mac() {
-        use rand::thread_rng;
-        use rand_core::RngCore;
+        use rand::{thread_rng, RngCore};
 
         const MESSAGE: &[u8] = b"battery staple";
         type Ci = CipherWithMac<Aes128Ctr, Keccak256>;
