@@ -1,6 +1,6 @@
 [package]
 name = "pwbox"
-version = "0.1.5"
+version = "0.2.0"
 authors = ["The Exonum Team <exonum@bitfury.com>"]
 edition = "2018"
 license = "Apache-2.0"
@@ -9,7 +9,7 @@ categories = ["cryptography"]
 description = "Modular password-based encryption"
 
 [dependencies]
-rand = "0.7"
+rand_core = "0.5.0"
 clear_on_drop = "0.2.3"
 constant_time_eq = "0.1.3"
 smallvec = "0.6.10"
@@ -27,7 +27,7 @@ rust-crypto = { version = "0.2.36", optional = true }
 [dev-dependencies]
 assert_matches = "1.3.0"
 hex = "0.3.2"
-rand = "0.7"
+rand = "0.7.0"
 rpassword = "3.0.2"
 serde_cbor = "0.10.0"
 serde_yaml = "0.8.9"
