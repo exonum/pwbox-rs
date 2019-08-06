@@ -75,7 +75,7 @@
 #![deny(missing_docs, missing_debug_implementations)]
 
 use failure::Fail;
-use rand_core::{CryptoRng, RngCore};
+use rand::{CryptoRng, RngCore};
 use serde_json::Error as JsonError;
 
 use std::{fmt, marker::PhantomData};
