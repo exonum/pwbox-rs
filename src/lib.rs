@@ -25,6 +25,8 @@
 //! - [`Sodium`]
 //! - [`RustCrypto`] (provides compatibility with Ethereum keystore; see its docs for more
 //!   details)
+//! - [`PureCrypto`] (pure Rust implementation; good for comiling into WASM
+//!   or for other constrained environments).
 //!
 //! There is also [`Eraser`], which allows to (de)serialize [`PwBox`]es from any `serde`-compatible
 //! format, such as JSON or TOML.
@@ -37,6 +39,7 @@
 //! [`Suite`]: trait.Suite.html
 //! [`Sodium`]: sodium/enum.Sodium.html
 //! [`RustCrypto`]: rcrypto/enum.RustCrypto.html
+//! [`PureCrypto`]: pure/enum.PureCrypto.html
 //! [`Eraser`]: struct.Eraser.html
 //!
 //! # Naming
@@ -90,6 +93,8 @@ mod traits;
 mod utils;
 
 // Crypto backends.
+#[cfg(feature = "pure")]
+pub mod pure;
 #[cfg(feature = "rust-crypto")]
 pub mod rcrypto;
 #[cfg(feature = "exonum_sodiumoxide")]
