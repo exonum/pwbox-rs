@@ -15,6 +15,7 @@
 //! Crypto primitives based on `libsodium`.
 
 use exonum_sodiumoxide::crypto::{
+    aead,
     pwhash::{
         self, derive_key, MemLimit, OpsLimit, Salt, MEMLIMIT_INTERACTIVE, MEMLIMIT_SENSITIVE,
         OPSLIMIT_INTERACTIVE, OPSLIMIT_SENSITIVE,
@@ -23,6 +24,8 @@ use exonum_sodiumoxide::crypto::{
 };
 use failure::Fail;
 use serde_derive::*;
+
+use alloc::boxed::Box;
 
 use super::{Cipher, CipherOutput, DeriveKey, Eraser, Suite};
 
@@ -103,6 +106,34 @@ impl DeriveKey for Scrypt {
     }
 }
 
+/// Sodium wrapper around scrypt. Designed for compatibility with other implementations.
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct ScryptCompat(pub crate::utils::ScryptParams);
+
+impl From<ScryptCompat> for Scrypt {
+    fn from(value: ScryptCompat) -> Scrypt {
+        let memlimit = value.0.r << (value.0.log_n as u32 + 7);
+        let opslimit = value.0.r * value.0.p << (value.0.log_n as u32 + 2);
+        Scrypt { opslimit, memlimit }
+    }
+}
+
+impl DeriveKey for ScryptCompat {
+    fn salt_len(&self) -> usize {
+        pwhash::SALTBYTES
+    }
+
+    fn derive_key(
+        &self,
+        buf: &mut [u8],
+        password: &[u8],
+        salt: &[u8],
+    ) -> Result<(), Box<dyn Fail>> {
+        Scrypt::from(*self).derive_key(buf, password, salt)
+    }
+}
+
 /// `xsalsa20` symmetric cipher with `poly1305` MAC.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct XSalsa20Poly1305;
@@ -134,15 +165,49 @@ impl Cipher for XSalsa20Poly1305 {
     }
 }
 
+/// `ChaCha20` symmetric cipher with `poly1305` MAC.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ChaCha20Poly1305;
+
+impl Cipher for ChaCha20Poly1305 {
+    const KEY_LEN: usize = aead::KEYBYTES;
+    const NONCE_LEN: usize = aead::NONCEBYTES;
+    const MAC_LEN: usize = aead::TAGBYTES;
+
+    fn seal(message: &[u8], nonce: &[u8], key: &[u8]) -> CipherOutput {
+        let nonce = aead::Nonce::from_slice(nonce).expect("nonce");
+        let key = aead::Key::from_slice(key).expect("key");
+        let mut message = message.to_vec();
+
+        let aead::Tag(mac) = aead::seal_detached(&mut message, None, &nonce, &key);
+        CipherOutput {
+            ciphertext: message,
+            mac: mac.to_vec(),
+        }
+    }
+
+    fn open(output: &mut [u8], enc: &CipherOutput, nonce: &[u8], key: &[u8]) -> Result<(), ()> {
+        let nonce = aead::Nonce::from_slice(nonce).expect("invalid nonce length");
+        let key = aead::Key::from_slice(key).expect("invalid key length");
+        let mac = aead::Tag::from_slice(&enc.mac).expect("invalid MAC length");
+
+        output.copy_from_slice(&enc.ciphertext);
+        aead::open_detached(output, None, &mac, &nonce, &key)
+    }
+}
+
 /// Suite for password-based encryption provided by `libsodium`.
 ///
 /// # Ciphers
 ///
 /// - `xsalsa20-poly1305`: XSalsa20 stream cipher with Poly1305 MAC
+/// - `chacha20-poly1305`: ChaCha20 stream cipher with Poly1305 MAC
+///   as per [RFC 8439](https://tools.ietf.org/html/rfc8439)
 ///
 /// # KDFs
 ///
 /// - `scrypt-nacl`: `scrypt` KDF with the `libsodium` parametrization.
+/// - `scrypt`: `scrypt` KDF with the original parametrization.
 ///
 /// # Examples
 ///
@@ -157,17 +222,16 @@ impl Suite for Sodium {
     fn add_ciphers_and_kdfs(eraser: &mut Eraser) {
         eraser
             .add_kdf::<Scrypt>("scrypt-nacl")
-            .add_cipher::<XSalsa20Poly1305>("xsalsa20-poly1305");
+            .add_kdf::<ScryptCompat>("scrypt")
+            .add_cipher::<XSalsa20Poly1305>("xsalsa20-poly1305")
+            .add_cipher::<ChaCha20Poly1305>("chacha20-poly1305");
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        erased::test_kdf_and_cipher_corruption,
-        sodium::{Scrypt, XSalsa20Poly1305},
-        test_kdf_and_cipher,
-    };
+    use super::*;
+    use crate::{erased::test_kdf_and_cipher_corruption, test_kdf_and_cipher};
 
     #[test]
     fn scrypt_and_salsa() {
@@ -179,5 +243,23 @@ mod tests {
     fn scrypt_and_salsa_corruption() {
         let scrypt = Scrypt::light();
         test_kdf_and_cipher_corruption::<_, XSalsa20Poly1305>(scrypt);
+    }
+
+    #[test]
+    fn scrypt_and_chacha() {
+        let scrypt = Scrypt::light();
+        test_kdf_and_cipher::<_, ChaCha20Poly1305>(scrypt);
+    }
+
+    #[test]
+    fn scrypt_and_chacha_corruption() {
+        let scrypt = Scrypt::light();
+        test_kdf_and_cipher_corruption::<_, ChaCha20Poly1305>(scrypt);
+    }
+
+    #[test]
+    fn compat_scrypt_and_salsa() {
+        let scrypt = ScryptCompat(crate::ScryptParams::light());
+        test_kdf_and_cipher::<_, XSalsa20Poly1305>(scrypt);
     }
 }
