@@ -54,3 +54,6 @@ required-features = ["exonum_sodiumoxide"]
 name = "key-util"
 path = "examples/key_util.rs"
 required-features = ["exonum_sodiumoxide"]
+
+[workspace]
+members = [".", "wasm"]
