@@ -98,7 +98,7 @@ pub mod sodium;
 pub use cipher_with_mac::{CipherWithMac, Mac, UnauthenticatedCipher};
 pub use erased::{EraseError, ErasedPwBox, Eraser, Suite};
 pub use traits::{Cipher, CipherOutput, DeriveKey};
-pub use utils::SensitiveData;
+pub use utils::{ScryptParams, SensitiveData};
 
 use traits::{CipherObject, ObjectSafeCipher};
 
