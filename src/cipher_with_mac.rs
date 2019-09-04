@@ -16,7 +16,8 @@
 
 use constant_time_eq::constant_time_eq;
 
-use std::marker::PhantomData;
+use alloc::vec::Vec;
+use core::marker::PhantomData;
 
 use crate::{Cipher, CipherOutput};
 

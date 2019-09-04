@@ -25,7 +25,8 @@ use crypto::{
 use failure::Fail;
 use serde_derive::*;
 
-use crate::utils::log_transform::LogNTransform;
+use alloc::{boxed::Box, vec, vec::Vec};
+
 use crate::{
     Cipher, CipherOutput, CipherWithMac, DeriveKey, Eraser, Mac, Suite, UnauthenticatedCipher,
 };

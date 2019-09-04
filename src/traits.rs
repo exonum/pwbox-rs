@@ -18,7 +18,8 @@ use failure::Fail;
 use hex_buffer_serde::{Hex as _, HexForm};
 use serde_derive::*;
 
-use std::marker::PhantomData;
+use alloc::{boxed::Box, vec::Vec};
+use core::marker::PhantomData;
 
 /// Key derivation function (KDF).
 ///

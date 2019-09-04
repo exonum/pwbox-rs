@@ -19,7 +19,8 @@ use serde::{de::DeserializeOwned, Serialize};
 use serde_derive::*;
 use serde_json::{self, Error as JsonError, Value as JsonValue};
 
-use std::{any::TypeId, collections::HashMap, fmt};
+use alloc::{borrow::ToOwned, boxed::Box, collections::BTreeMap, string::String, vec::Vec};
+use core::{any::TypeId, fmt};
 
 use crate::{
     traits::{CipherObject, ObjectSafeCipher},
@@ -142,10 +143,10 @@ pub enum EraseError {
 /// # fn main() {}
 /// ```
 pub struct Eraser {
-    ciphers: HashMap<String, CipherFactory>,
-    kdfs: HashMap<String, KdfFactory>,
-    cipher_names: HashMap<TypeId, String>,
-    kdf_names: HashMap<TypeId, String>,
+    ciphers: BTreeMap<String, CipherFactory>,
+    kdfs: BTreeMap<String, KdfFactory>,
+    cipher_names: BTreeMap<TypeId, String>,
+    kdf_names: BTreeMap<TypeId, String>,
 }
 
 impl fmt::Debug for Eraser {
@@ -167,10 +168,10 @@ impl Eraser {
     /// Creates an `Eraser` with no ciphers or KDFs.
     pub fn new() -> Self {
         Eraser {
-            ciphers: HashMap::new(),
-            kdfs: HashMap::new(),
-            cipher_names: HashMap::new(),
-            kdf_names: HashMap::new(),
+            ciphers: BTreeMap::new(),
+            kdfs: BTreeMap::new(),
+            cipher_names: BTreeMap::new(),
+            kdf_names: BTreeMap::new(),
         }
     }
 
@@ -369,6 +370,7 @@ where
     K: DeriveKey + Clone + Default + Serialize + DeserializeOwned,
     C: Cipher,
 {
+    use alloc::vec;
     use assert_matches::assert_matches;
     use rand::thread_rng;
 

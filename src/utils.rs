@@ -15,7 +15,7 @@
 use clear_on_drop::ClearOnDrop;
 use smallvec::{smallvec, SmallVec};
 
-use std::{fmt, ops::Deref};
+use core::{fmt, ops::Deref};
 
 /// Expected upper bound on byte buffers created during encryption / decryption.
 const BUFFER_SIZE: usize = 256;

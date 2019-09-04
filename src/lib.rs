@@ -72,13 +72,17 @@
 //! # }
 //! ```
 
+#![no_std]
 #![deny(missing_docs, missing_debug_implementations)]
+
+extern crate alloc;
 
 use failure::Fail;
 use rand_core::{CryptoRng, RngCore};
 use serde_json::Error as JsonError;
 
-use std::{fmt, marker::PhantomData};
+use alloc::{boxed::Box, string::String, vec::Vec};
+use core::{fmt, marker::PhantomData};
 
 mod cipher_with_mac;
 mod erased;
@@ -387,6 +391,7 @@ where
     K: DeriveKey + Clone + Default,
     C: Cipher,
 {
+    use alloc::vec;
     use rand::thread_rng;
 
     const PASSWORD: &str = "correct horse battery staple";
