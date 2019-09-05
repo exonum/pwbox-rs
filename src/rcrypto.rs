@@ -164,12 +164,12 @@ impl Cipher for Aes128Gcm {
 /// ```
 /// use rand::thread_rng;
 /// use pwbox::{Eraser, ErasedPwBox, Suite, rcrypto::RustCrypto};
-/// # use pwbox::{Error, rcrypto::Scrypt};
+/// # use pwbox::{rcrypto::Scrypt, Error, ScryptParams};
 ///
 /// # fn main() -> Result<(), Error> {
 /// // Create a new box.
 /// let pwbox = RustCrypto::build_box(&mut thread_rng())
-/// #   .kdf(Scrypt::custom(2, 1))
+/// #   .kdf(Scrypt(ScryptParams::custom(2, 1)))
 ///     .seal(b"correct horse", b"battery staple")
 ///     .unwrap();
 ///

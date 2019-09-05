@@ -115,7 +115,7 @@ impl LogNTransform {
 /// let scrypt = Scrypt::default();
 /// assert_eq!(
 ///     serde_json::to_value(scrypt).unwrap(),
-///     json!({ "n": 262144, "r": 8, "p": 1 })
+///     json!({ "n": 16384, "r": 8, "p": 1 })
 /// );
 /// ```
 ///

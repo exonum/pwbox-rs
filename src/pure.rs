@@ -105,12 +105,12 @@ impl DeriveKey for Scrypt {
 /// ```
 /// use rand::thread_rng;
 /// use pwbox::{Eraser, ErasedPwBox, Suite, pure::PureCrypto};
-/// # use pwbox::{Error, pure::Scrypt};
+/// # use pwbox::{Error, pure::Scrypt, ScryptParams};
 ///
 /// # fn main() -> Result<(), Error> {
 /// // Create a new box.
 /// let pwbox = PureCrypto::build_box(&mut thread_rng())
-/// #   .kdf(Scrypt::custom(2, 1))
+/// #   .kdf(Scrypt(ScryptParams::custom(2, 1)))
 ///     .seal(b"correct horse", b"battery staple")
 ///     .unwrap();
 ///

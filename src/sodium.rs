@@ -113,8 +113,8 @@ pub struct ScryptCompat(pub crate::utils::ScryptParams);
 
 impl From<ScryptCompat> for Scrypt {
     fn from(value: ScryptCompat) -> Scrypt {
-        let memlimit = value.0.r << (value.0.log_n as u32 + 7);
-        let opslimit = value.0.r * value.0.p << (value.0.log_n as u32 + 2);
+        let memlimit = value.0.r << (u32::from(value.0.log_n) + 7);
+        let opslimit = (value.0.r * value.0.p) << (u32::from(value.0.log_n) + 2);
         Scrypt { opslimit, memlimit }
     }
 }
@@ -255,6 +255,18 @@ mod tests {
     fn scrypt_and_chacha_corruption() {
         let scrypt = Scrypt::light();
         test_kdf_and_cipher_corruption::<_, ChaCha20Poly1305>(scrypt);
+    }
+
+    fn params_are_equal(lhs: Scrypt, rhs: Scrypt) -> bool {
+        lhs.opslimit == rhs.opslimit && lhs.memlimit == rhs.memlimit
+    }
+
+    #[test]
+    fn compat_scrypt_parameters() {
+        let compat = ScryptCompat(crate::ScryptParams::default());
+        assert!(params_are_equal(Scrypt::from(compat), Scrypt::default()));
+        let compat = ScryptCompat(crate::ScryptParams::light());
+        assert!(params_are_equal(Scrypt::from(compat), Scrypt::light()));
     }
 
     #[test]
