@@ -52,7 +52,7 @@
 //! Using the `Sodium` cryptosuite:
 //!
 //! ```
-//! # use failure::Error;
+//! # use anyhow::Error;
 //! use rand::thread_rng;
 //! use pwbox::{Eraser, ErasedPwBox, Suite, sodium::Sodium};
 //! # use pwbox::sodium::Scrypt;
@@ -75,22 +75,33 @@
 //! # }
 //! ```
 
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
 #![deny(missing_docs, missing_debug_implementations)]
 
-extern crate alloc;
-
-use failure::Fail;
 use rand_core::{CryptoRng, RngCore};
 use serde_json::Error as JsonError;
 
-use alloc::{boxed::Box, string::String, vec::Vec};
 use core::{fmt, marker::PhantomData};
 
 mod cipher_with_mac;
 mod erased;
 mod traits;
 mod utils;
+
+// Polyfill for `alloc` types.
+mod alloc {
+    #[cfg(not(feature = "std"))]
+    extern crate alloc;
+
+    #[cfg(not(feature = "std"))]
+    pub use alloc::{
+        borrow::ToOwned, boxed::Box, collections::BTreeMap, string::String, vec, vec::Vec,
+    };
+    #[cfg(feature = "std")]
+    pub use std::{
+        borrow::ToOwned, boxed::Box, collections::BTreeMap, string::String, vec, vec::Vec,
+    };
+}
 
 // Crypto backends.
 #[cfg(feature = "pure")]
@@ -100,15 +111,20 @@ pub mod rcrypto;
 #[cfg(feature = "exonum_sodiumoxide")]
 pub mod sodium;
 
-pub use cipher_with_mac::{CipherWithMac, Mac, UnauthenticatedCipher};
-pub use erased::{EraseError, ErasedPwBox, Eraser, Suite};
-pub use traits::{Cipher, CipherOutput, DeriveKey};
-pub use utils::{ScryptParams, SensitiveData};
+pub use crate::{
+    cipher_with_mac::{CipherWithMac, Mac, UnauthenticatedCipher},
+    erased::{EraseError, ErasedPwBox, Eraser, Suite},
+    traits::{Cipher, CipherOutput, DeriveKey},
+    utils::{ScryptParams, SensitiveData},
+};
 
-use traits::{CipherObject, ObjectSafeCipher};
+use crate::{
+    alloc::{Box, String, Vec},
+    traits::{CipherObject, ObjectSafeCipher},
+};
 
 /// Errors occurring during `PwBox` operations.
-#[derive(Debug, Fail)]
+#[derive(Debug)]
 pub enum Error {
     /// A cipher with the specified name is not registered.
     ///
@@ -119,7 +135,6 @@ pub enum Error {
     ///
     /// [`Eraser::add_cipher()`]: struct.Eraser.html#method.add_cipher
     /// [`Eraser::add_suite()`]: struct.Eraser.html#method.add_suite
-    #[fail(display = "unknown cipher: {}", _0)]
     NoCipher(String),
 
     /// A key derivation function with the specified name is not registered.
@@ -131,44 +146,63 @@ pub enum Error {
     ///
     /// [`Eraser::add_kdf()`]: struct.Eraser.html#method.add_kdf
     /// [`Eraser::add_suite()`]: struct.Eraser.html#method.add_suite
-    #[fail(display = "unknown KDF: {}", _0)]
     NoKdf(String),
 
     /// Failed to parse KDF parameters.
-    #[fail(display = "failed to parse KDF parameters: {}", _0)]
-    KdfParams(#[fail(cause)] JsonError),
+    KdfParams(JsonError),
 
     /// Incorrect nonce length encountered.
     ///
     /// This error usually means that the box is corrupted.
-    #[fail(display = "incorrect nonce length")]
     NonceLen,
 
     /// Incorrect MAC length encountered.
     ///
     /// This error usually means that the box is corrupted.
-    #[fail(display = "incorrect MAC length")]
     MacLen,
 
     /// Incorrect salt length encountered.
     ///
     /// This error usually means that the box is corrupted.
-    #[fail(display = "incorrect salt length")]
     SaltLen,
 
     /// Failed to verify MAC code.
     ///
     /// This error means that either the supplied password is incorrect,
     /// or the box is corrupted.
-    #[fail(display = "incorrect password or corrupted box")]
     MacMismatch,
 
     /// Error during KDF invocation.
     ///
     /// This error can arise if the KDF was supplied with invalid parameters,
     /// which may lead or have led to a KDF-specific error (e.g., out-of-memory).
-    #[fail(display = "error during key derivation: {}", _0)]
-    DeriveKey(#[fail(cause)] Box<dyn Fail>),
+    DeriveKey(anyhow::Error),
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Error::NoCipher(cipher) => write!(formatter, "unknown cipher: {}", cipher),
+            Error::NoKdf(kdf) => write!(formatter, "unknown KDF: {}", kdf),
+            Error::KdfParams(e) => write!(formatter, "failed to parse KDF parameters: {}", e),
+            Error::NonceLen => formatter.write_str("incorrect nonce length"),
+            Error::MacLen => formatter.write_str("incorrect MAC length"),
+            Error::SaltLen => formatter.write_str("incorrect salt length"),
+            Error::MacMismatch => formatter.write_str("incorrect password or corrupted box"),
+            Error::DeriveKey(e) => write!(formatter, "error during key derivation: {}", e),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Error::KdfParams(e) => Some(e),
+            Error::DeriveKey(e) => Some(e.as_ref()),
+            _ => None,
+        }
+    }
 }
 
 /// The core cryptographic object of the library: a box containing randomly generated `salt`
@@ -191,7 +225,7 @@ impl<K: DeriveKey, C: ObjectSafeCipher> PwBoxInner<K, C> {
         rng: &mut R,
         password: impl AsRef<[u8]>,
         message: impl AsRef<[u8]>,
-    ) -> Result<Self, Box<dyn Fail>> {
+    ) -> anyhow::Result<Self> {
         // Create salt and nonce from RNG.
         let mut salt = SensitiveData::zeros(kdf.salt_len());
         rng.fill_bytes(salt.bytes_mut());
@@ -265,7 +299,7 @@ impl<K: DeriveKey + Default, C: Cipher> PwBox<K, C> {
         rng: &mut R,
         password: impl AsRef<[u8]>,
         message: impl AsRef<[u8]>,
-    ) -> Result<Self, Box<dyn Fail>> {
+    ) -> anyhow::Result<Self> {
         let (kdf, cipher) = (K::default(), CipherObject::default());
         PwBoxInner::seal(kdf, cipher, rng, password, message).map(|inner| PwBox { inner })
     }
@@ -381,7 +415,7 @@ where
         &mut self,
         password: impl AsRef<[u8]>,
         data: impl AsRef<[u8]>,
-    ) -> Result<PwBox<K, C>, Box<dyn Fail>> {
+    ) -> anyhow::Result<PwBox<K, C>> {
         let cipher: CipherObject<C> = Default::default();
         let kdf = self.kdf.clone().unwrap_or_default();
         PwBoxInner::seal(kdf, cipher, self.rng, password, data).map(|inner| PwBox { inner })

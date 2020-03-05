@@ -14,6 +14,7 @@
 
 //! Crypto primitives based on `libsodium`.
 
+use anyhow::{anyhow, Error};
 use exonum_sodiumoxide::crypto::{
     aead,
     pwhash::{
@@ -22,10 +23,7 @@ use exonum_sodiumoxide::crypto::{
     },
     secretbox::{self, open_detached, seal_detached, Key, Nonce, Tag},
 };
-use failure::Fail;
 use serde_derive::*;
-
-use alloc::boxed::Box;
 
 use super::{Cipher, CipherOutput, DeriveKey, Eraser, Suite};
 
@@ -79,21 +77,12 @@ impl Scrypt {
     }
 }
 
-#[derive(Debug, Fail)]
-#[fail(display = "out of memory")]
-struct ScryptError;
-
 impl DeriveKey for Scrypt {
     fn salt_len(&self) -> usize {
         pwhash::SALTBYTES
     }
 
-    fn derive_key(
-        &self,
-        buf: &mut [u8],
-        password: &[u8],
-        salt: &[u8],
-    ) -> Result<(), Box<dyn Fail>> {
+    fn derive_key(&self, buf: &mut [u8], password: &[u8], salt: &[u8]) -> Result<(), Error> {
         derive_key(
             buf,
             password,
@@ -102,7 +91,7 @@ impl DeriveKey for Scrypt {
             MemLimit(self.memlimit as usize),
         )
         .map(drop)
-        .map_err(|()| Box::new(ScryptError) as Box<dyn Fail>)
+        .map_err(|()| anyhow!("out of memory"))
     }
 }
 
@@ -129,7 +118,7 @@ impl DeriveKey for ScryptCompat {
         buf: &mut [u8],
         password: &[u8],
         salt: &[u8],
-    ) -> Result<(), Box<dyn Fail>> {
+    ) -> anyhow::Result<()> {
         Scrypt::from(*self).derive_key(buf, password, salt)
     }
 }

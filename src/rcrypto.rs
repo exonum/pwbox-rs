@@ -14,6 +14,7 @@
 
 //! `rust-crypto` cryptographic backend.
 
+use anyhow::Error;
 use clear_on_drop::ClearOnDrop;
 use crypto::{
     aead::{AeadDecryptor, AeadEncryptor},
@@ -22,12 +23,10 @@ use crypto::{
     scrypt::{scrypt, ScryptParams as Params},
     sha3::Sha3,
 };
-use failure::Fail;
 use serde_derive::*;
 
-use alloc::{boxed::Box, vec, vec::Vec};
-
 use crate::{
+    alloc::{vec, Vec},
     Cipher, CipherOutput, CipherWithMac, DeriveKey, Eraser, Mac, ScryptParams, Suite,
     UnauthenticatedCipher,
 };
@@ -100,12 +99,7 @@ impl DeriveKey for Scrypt {
         32
     }
 
-    fn derive_key(
-        &self,
-        buf: &mut [u8],
-        password: &[u8],
-        salt: &[u8],
-    ) -> Result<(), Box<dyn Fail>> {
+    fn derive_key(&self, buf: &mut [u8], password: &[u8], salt: &[u8]) -> Result<(), Error> {
         let params = Params::new(self.0.log_n, self.0.r, self.0.p);
         scrypt(password, salt, &params, buf);
         Ok(())

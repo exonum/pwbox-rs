@@ -15,17 +15,15 @@
 //! Pure Rust crypto primitives. Can be used if your app targets WASM or some other constrained
 //! environment.
 
+use anyhow::Error;
 use chacha20poly1305::{
     aead::{generic_array::GenericArray, Aead, NewAead},
     ChaCha20Poly1305,
 };
-use failure::Fail;
 use scrypt::{scrypt, ScryptParams as Params};
 use serde_derive::*;
 
-use alloc::{boxed::Box, vec::Vec};
-
-use crate::{Cipher, CipherOutput, DeriveKey, Eraser, ScryptParams, Suite};
+use crate::{alloc::Vec, Cipher, CipherOutput, DeriveKey, Eraser, ScryptParams, Suite};
 
 impl Cipher for ChaCha20Poly1305 {
     const KEY_LEN: usize = 32;
@@ -76,15 +74,17 @@ impl DeriveKey for Scrypt {
         32
     }
 
-    fn derive_key(
-        &self,
-        buf: &mut [u8],
-        password: &[u8],
-        salt: &[u8],
-    ) -> Result<(), Box<dyn Fail>> {
-        let params = Params::new(self.0.log_n, self.0.r, self.0.p)
-            .map_err(|e| Box::new(e) as Box<dyn Fail>)?;
-        scrypt(password, salt, &params, buf).map_err(|e| Box::new(e) as Box<dyn Fail>)
+    #[cfg(feature = "std")]
+    fn derive_key(&self, buf: &mut [u8], password: &[u8], salt: &[u8]) -> Result<(), Error> {
+        let params = Params::new(self.0.log_n, self.0.r, self.0.p)?;
+        scrypt(password, salt, &params, buf).map_err(Error::new)
+    }
+
+    #[cfg(not(feature = "std"))]
+    fn derive_key(&self, buf: &mut [u8], password: &[u8], salt: &[u8]) -> Result<(), Error> {
+        // Without `std`, we need to use more dumb conversions to `anyhow::Error`.
+        let params = Params::new(self.0.log_n, self.0.r, self.0.p).map_err(Error::msg)?;
+        scrypt(password, salt, &params, buf).map_err(Error::msg)
     }
 }
 
