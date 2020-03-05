@@ -113,12 +113,7 @@ impl DeriveKey for ScryptCompat {
         pwhash::SALTBYTES
     }
 
-    fn derive_key(
-        &self,
-        buf: &mut [u8],
-        password: &[u8],
-        salt: &[u8],
-    ) -> anyhow::Result<()> {
+    fn derive_key(&self, buf: &mut [u8], password: &[u8], salt: &[u8]) -> anyhow::Result<()> {
         Scrypt::from(*self).derive_key(buf, password, salt)
     }
 }
