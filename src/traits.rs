@@ -14,11 +14,13 @@
 
 //! Traits for core crypto primitives used in `PwBox`.
 
-use failure::Fail;
+use anyhow::Error;
 use hex_buffer_serde::{Hex as _, HexForm};
 use serde_derive::*;
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
+
+use crate::alloc::{Box, Vec};
 
 /// Key derivation function (KDF).
 ///
@@ -44,8 +46,7 @@ pub trait DeriveKey: 'static {
     /// # Safety
     ///
     /// When used within `PwBox`, `salt` is guaranteed to have the correct size.
-    fn derive_key(&self, buf: &mut [u8], password: &[u8], salt: &[u8])
-        -> Result<(), Box<dyn Fail>>;
+    fn derive_key(&self, buf: &mut [u8], password: &[u8], salt: &[u8]) -> Result<(), Error>;
 }
 
 impl DeriveKey for Box<dyn DeriveKey> {
@@ -53,12 +54,7 @@ impl DeriveKey for Box<dyn DeriveKey> {
         (**self).salt_len()
     }
 
-    fn derive_key(
-        &self,
-        buf: &mut [u8],
-        password: &[u8],
-        salt: &[u8],
-    ) -> Result<(), Box<dyn Fail>> {
+    fn derive_key(&self, buf: &mut [u8], password: &[u8], salt: &[u8]) -> Result<(), Error> {
         (**self).derive_key(buf, password, salt)
     }
 }

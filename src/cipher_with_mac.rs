@@ -16,9 +16,9 @@
 
 use constant_time_eq::constant_time_eq;
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
-use crate::{Cipher, CipherOutput};
+use crate::{alloc::Vec, Cipher, CipherOutput};
 
 /// Symmetric cipher without built-in authentication.
 pub trait UnauthenticatedCipher: 'static {

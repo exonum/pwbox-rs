@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use failure_derive::*;
 use hex_buffer_serde::{Hex as _Hex, HexForm};
 use rand_core::{CryptoRng, RngCore};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_derive::*;
 use serde_json::{self, Error as JsonError, Value as JsonValue};
 
-use std::{any::TypeId, collections::HashMap, fmt};
+use core::{any::TypeId, fmt};
 
 use crate::{
+    alloc::{BTreeMap, Box, String, ToOwned as _, Vec},
     traits::{CipherObject, ObjectSafeCipher},
     Cipher, CipherOutput, DeriveKey, Error, PwBox, PwBoxBuilder, PwBoxInner, RestoredPwBox,
 };
@@ -94,19 +94,41 @@ type CipherFactory = Box<dyn Fn() -> Box<dyn ObjectSafeCipher>>;
 type KdfFactory = Box<dyn Fn(JsonValue) -> Result<Box<dyn DeriveKey>, JsonError>>;
 
 /// Errors occurring during erasing a `PwBox`.
-#[derive(Debug, Fail)]
+#[derive(Debug)]
 pub enum EraseError {
     /// KDF used in the box is not registered with the `Eraser`.
-    #[fail(display = "KDF used in the box is not registered with the `Eraser`")]
     NoKdf,
 
     /// Cipher used in the box is not registered with the `Eraser`.
-    #[fail(display = "cipher used in the box is not registered with the `Eraser`")]
     NoCipher,
 
     /// Error serializing KDF params.
-    #[fail(display = "error serializing KDF params: {}", _0)]
-    SerializeKdf(#[fail(cause)] JsonError),
+    SerializeKdf(JsonError),
+}
+
+impl fmt::Display for EraseError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            EraseError::NoKdf => {
+                formatter.write_str("KDF used in the box is not registered with the `Eraser`")
+            }
+            EraseError::NoCipher => {
+                formatter.write_str("cipher used in the box is not registered with the `Eraser`")
+            }
+            EraseError::SerializeKdf(e) => write!(formatter, "error serializing KDF params: {}", e),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for EraseError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        if let EraseError::SerializeKdf(e) = self {
+            Some(e)
+        } else {
+            None
+        }
+    }
 }
 
 /// Helper structure to convert password-encrypted boxes to a serializable format and back.
@@ -142,10 +164,10 @@ pub enum EraseError {
 /// # fn main() {}
 /// ```
 pub struct Eraser {
-    ciphers: HashMap<String, CipherFactory>,
-    kdfs: HashMap<String, KdfFactory>,
-    cipher_names: HashMap<TypeId, String>,
-    kdf_names: HashMap<TypeId, String>,
+    ciphers: BTreeMap<String, CipherFactory>,
+    kdfs: BTreeMap<String, KdfFactory>,
+    cipher_names: BTreeMap<TypeId, String>,
+    kdf_names: BTreeMap<TypeId, String>,
 }
 
 impl fmt::Debug for Eraser {
@@ -167,10 +189,10 @@ impl Eraser {
     /// Creates an `Eraser` with no ciphers or KDFs.
     pub fn new() -> Self {
         Eraser {
-            ciphers: HashMap::new(),
-            kdfs: HashMap::new(),
-            cipher_names: HashMap::new(),
-            kdf_names: HashMap::new(),
+            ciphers: BTreeMap::new(),
+            kdfs: BTreeMap::new(),
+            cipher_names: BTreeMap::new(),
+            kdf_names: BTreeMap::new(),
         }
     }
 
@@ -196,15 +218,17 @@ impl Eraser {
             "cipher name already registered: {}",
             cipher_name
         );
+
         let old_name = self
             .cipher_names
             .insert(TypeId::of::<C>(), cipher_name.to_owned());
-        assert!(
-            old_name.is_none(),
-            "cipher {} already registered under name {}",
-            cipher_name,
-            old_name.unwrap()
-        );
+        if let Some(old_name) = old_name {
+            panic!(
+                "cipher {} already registered under name {}",
+                cipher_name, old_name
+            );
+        }
+
         self
     }
 
@@ -229,15 +253,17 @@ impl Eraser {
             "cipher name already registered: {}",
             kdf_name
         );
+
         let old_name = self
             .kdf_names
             .insert(TypeId::of::<K>(), kdf_name.to_owned());
-        assert!(
-            old_name.is_none(),
-            "KDF {} already registered under name {}",
-            kdf_name,
-            old_name.unwrap()
-        );
+        if let Some(old_name) = old_name {
+            panic!(
+                "KDF {} already registered under name {}",
+                kdf_name, old_name
+            );
+        }
+
         self
     }
 
@@ -363,12 +389,12 @@ pub trait Suite {
 
 // This function is used in testing cryptographic backends, so it's intentionally kept public.
 #[cfg(test)]
-#[doc(hidden)]
 pub fn test_kdf_and_cipher_corruption<K, C>(kdf: K)
 where
     K: DeriveKey + Clone + Default + Serialize + DeserializeOwned,
     C: Cipher,
 {
+    use crate::alloc::vec;
     use assert_matches::assert_matches;
     use rand::thread_rng;
 

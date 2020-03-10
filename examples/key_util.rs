@@ -15,7 +15,7 @@
 //! Password-based encryption example for securely storing an Ed25519 keypair.
 //! For simplicity, errors during processing lead to panics.
 
-use failure::{bail, format_err, Error};
+use anyhow::{bail, format_err, Error};
 use pwbox::{sodium::Sodium, ErasedPwBox, Eraser, Suite};
 use rand::thread_rng;
 use rpassword::read_password_from_tty;

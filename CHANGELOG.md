@@ -5,6 +5,14 @@ The project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased] 
 
+### Added
+
+- Support `no_std` environment.
+
+### Changed
+
+- Switch error handling library from `failure` to `anyhow`.
+
 ## 0.2.1 - 2019-09-06
 
 ### Changed

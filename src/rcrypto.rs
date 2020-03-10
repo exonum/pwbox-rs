@@ -14,20 +14,21 @@
 
 //! `rust-crypto` cryptographic backend.
 
+use anyhow::Error;
 use clear_on_drop::ClearOnDrop;
 use crypto::{
     aead::{AeadDecryptor, AeadEncryptor},
     aes, aes_gcm,
     digest::Digest,
-    scrypt::{scrypt, ScryptParams},
+    scrypt::{scrypt, ScryptParams as Params},
     sha3::Sha3,
 };
-use failure::Fail;
 use serde_derive::*;
 
-use crate::utils::log_transform::LogNTransform;
 use crate::{
-    Cipher, CipherOutput, CipherWithMac, DeriveKey, Eraser, Mac, Suite, UnauthenticatedCipher,
+    alloc::{vec, Vec},
+    Cipher, CipherOutput, CipherWithMac, DeriveKey, Eraser, Mac, ScryptParams, Suite,
+    UnauthenticatedCipher,
 };
 
 /// AES-128 cipher in CTR mode.
@@ -88,83 +89,18 @@ impl Mac for Keccak256 {
     }
 }
 
-/// `Scrypt` key derivation function parameterized as per the original paper.
-///
-/// # Serialization
-///
-/// The function is serialized as three fields: `n`, `r` and `p`. See the [Scrypt paper]
-/// for more details on what they mean.
-///
-/// ```
-/// use serde_json::json;
-/// # use pwbox::rcrypto::Scrypt;
-///
-/// let scrypt = Scrypt::default();
-/// assert_eq!(
-///     serde_json::to_value(scrypt).unwrap(),
-///     json!({ "n": 262144, "r": 8, "p": 1 })
-/// );
-/// ```
-///
-/// [Scrypt paper]: http://www.tarsnap.com/scrypt/scrypt.pdf
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct Scrypt {
-    #[serde(rename = "n", with = "LogNTransform")]
-    log_n: u8,
-    r: u32,
-    p: u32,
-}
-
-impl Default for Scrypt {
-    /// Returns the "interactive" `scrypt` parameters as defined in libsodium.
-    ///
-    /// ```text
-    /// n = 2^18, r = 8, p = 1.
-    /// ```
-    fn default() -> Self {
-        Scrypt {
-            log_n: 18,
-            r: 8,
-            p: 1,
-        }
-    }
-}
-
-impl Scrypt {
-    /// Returns "light" `scrypt` parameters as used in Ethereum keystore implementations.
-    ///
-    /// ```text
-    /// n = 2^12, r = 8, p = 6.
-    /// ```
-    pub const fn light() -> Self {
-        Scrypt {
-            log_n: 12,
-            r: 8,
-            p: 6,
-        }
-    }
-
-    /// Creates custom parameters for scrypt KDF.
-    ///
-    /// The `r` parameter is always set to 8 as per libsodium conversion
-    /// from `opslimit` / `memlimit` and per Ethereum keystore implementations.
-    pub const fn custom(log_n: u8, p: u32) -> Self {
-        Scrypt { log_n, p, r: 8 }
-    }
-}
+/// RustCrypto wrapper around scrypt.
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct Scrypt(pub ScryptParams);
 
 impl DeriveKey for Scrypt {
     fn salt_len(&self) -> usize {
         32
     }
 
-    fn derive_key(
-        &self,
-        buf: &mut [u8],
-        password: &[u8],
-        salt: &[u8],
-    ) -> Result<(), Box<dyn Fail>> {
-        let params = ScryptParams::new(self.log_n, self.r, self.p);
+    fn derive_key(&self, buf: &mut [u8], password: &[u8], salt: &[u8]) -> Result<(), Error> {
+        let params = Params::new(self.0.log_n, self.0.r, self.0.p);
         scrypt(password, salt, &params, buf);
         Ok(())
     }
@@ -222,12 +158,12 @@ impl Cipher for Aes128Gcm {
 /// ```
 /// use rand::thread_rng;
 /// use pwbox::{Eraser, ErasedPwBox, Suite, rcrypto::RustCrypto};
-/// # use pwbox::{Error, rcrypto::Scrypt};
+/// # use pwbox::{rcrypto::Scrypt, Error, ScryptParams};
 ///
 /// # fn main() -> Result<(), Error> {
 /// // Create a new box.
 /// let pwbox = RustCrypto::build_box(&mut thread_rng())
-/// #   .kdf(Scrypt::custom(2, 1))
+/// #   .kdf(Scrypt(ScryptParams::custom(2, 1)))
 ///     .seal(b"correct horse", b"battery staple")
 ///     .unwrap();
 ///
@@ -294,7 +230,7 @@ mod tests {
     // `rust-crypto` is quite slow in debug mode, so we use *very* easy parameters here
     // (much easier than even `Scrypt::light()`) for the sake of testing.
     fn light_scrypt() -> Scrypt {
-        Scrypt::custom(6, 16)
+        Scrypt(ScryptParams::custom(6, 16))
     }
 
     #[test]
