@@ -47,6 +47,15 @@
 //! `PwBox` name was produced by combining two libsodium names: `pwhash` for password-based KDFs
 //! and `*box` for ciphers.
 //!
+//! # Crate Features
+//!
+//! - `std` (enabled by default): Enables types from the Rust standard library. Switching
+//!   this feature off can be used for constrained environments, such as WASM. Note that
+//!   the crate still requires an allocator (that is, the `alloc` crate) even
+//!   if the `std` feature is disabled.
+//! - `exonum_sodiumoxide` (enabled by default), `rust-crypto`, `pure` (both disabled by default):
+//!   Provide the cryptographic backends described above.
+//!
 //! # Examples
 //!
 //! Using the `Sodium` cryptosuite:
