@@ -22,7 +22,6 @@ rust:
 
 env:
   global:
-    - SODIUM_VERS=1.0.17
     - DEADLINKS_VERS=0.4.1
 
 cache:
