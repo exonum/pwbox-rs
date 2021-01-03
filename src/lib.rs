@@ -188,6 +188,12 @@ pub enum Error {
     DeriveKey(anyhow::Error),
 }
 
+impl From<MacMismatch> for Error {
+    fn from(_: MacMismatch) -> Self {
+        Self::MacMismatch
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -280,7 +286,7 @@ impl<K: DeriveKey, C: ObjectSafeCipher> PwBoxInner<K, C> {
 
         self.cipher
             .open(output.as_mut(), &self.encrypted, &self.nonce, &*key)
-            .map_err(|_| Error::MacMismatch)
+            .map_err(From::from)
     }
 
     fn open(&self, password: impl AsRef<[u8]>) -> Result<SensitiveData, Error> {

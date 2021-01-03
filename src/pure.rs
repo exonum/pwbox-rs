@@ -47,6 +47,8 @@ impl Cipher for ChaCha20Poly1305 {
         }
     }
 
+    #[allow(clippy::unknown_clippy_lints, clippy::map_err_ignore)]
+    // ^-- The error returned by `ChaCha20Poly1305` is opaque, so ignoring it doesn't lose info.
     fn open(
         output: &mut [u8],
         encrypted: &CipherOutput,
