@@ -14,8 +14,7 @@
 
 use hex_buffer_serde::{Hex as _Hex, HexForm};
 use rand_core::{CryptoRng, RngCore};
-use serde::{de::DeserializeOwned, Serialize};
-use serde_derive::*;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{self, Error as JsonError, Value as JsonValue};
 
 use core::{any::TypeId, fmt};

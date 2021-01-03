@@ -23,7 +23,7 @@ use exonum_sodiumoxide::crypto::{
     },
     secretbox::{self, open_detached, seal_detached, Key, Nonce, Tag},
 };
-use serde_derive::*;
+use serde::{Deserialize, Serialize};
 
 use super::{Cipher, CipherOutput, DeriveKey, Eraser, Suite};
 

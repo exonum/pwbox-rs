@@ -16,7 +16,7 @@
 
 use anyhow::Error;
 use hex_buffer_serde::{Hex as _, HexForm};
-use serde_derive::*;
+use serde::{Deserialize, Serialize};
 
 use core::marker::PhantomData;
 

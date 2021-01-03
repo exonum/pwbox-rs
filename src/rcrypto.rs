@@ -23,7 +23,7 @@ use crypto::{
     scrypt::{scrypt, ScryptParams as Params},
     sha3::Sha3,
 };
-use serde_derive::*;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     alloc::{vec, Vec},

@@ -14,7 +14,7 @@
 
 use clear_on_drop::ClearOnDrop;
 use serde::{de::Visitor, Deserializer, Serializer};
-use serde_derive::*;
+use serde::{Deserialize, Serialize};
 use smallvec::{smallvec, SmallVec};
 
 use core::{fmt, ops::Deref};
@@ -168,7 +168,7 @@ impl ScryptParams {
 
 #[test]
 fn log2_transform() {
-    use serde_derive::*;
+    use serde::{Deserialize, Serialize};
     use serde_json::{self, Value};
 
     #[derive(Serialize, Deserialize)]

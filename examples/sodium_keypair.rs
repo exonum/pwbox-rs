@@ -21,7 +21,7 @@ use exonum_sodiumoxide::crypto::sign::{
 use hex_buffer_serde::Hex;
 use pwbox::{sodium::Sodium, ErasedPwBox, Eraser, RestoredPwBox, Suite};
 use rand::thread_rng;
-use serde_derive::*;
+use serde::{Deserialize, Serialize};
 
 use std::borrow::Cow;
 

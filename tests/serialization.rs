@@ -15,7 +15,7 @@
 //! Test suite for different supported serialization formats.
 
 use rand::{thread_rng, Rng};
-use serde_derive::*;
+use serde::Deserialize;
 
 use pwbox::{rcrypto::RustCrypto, sodium::Sodium, ErasedPwBox, Eraser, Suite};
 

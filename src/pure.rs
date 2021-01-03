@@ -21,7 +21,7 @@ use chacha20poly1305::{
     ChaCha20Poly1305,
 };
 use scrypt::{scrypt, ScryptParams as Params};
-use serde_derive::*;
+use serde::{Deserialize, Serialize};
 
 use crate::{alloc::Vec, Cipher, CipherOutput, DeriveKey, Eraser, ScryptParams, Suite};
 
