@@ -354,8 +354,8 @@ pub struct RestoredPwBox {
 }
 
 impl fmt::Debug for RestoredPwBox {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("RestoredPwBox").finish()
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.debug_struct("RestoredPwBox").finish()
     }
 }
 
@@ -394,8 +394,9 @@ pub struct PwBoxBuilder<'a, K, C> {
 }
 
 impl<'a, K, C> fmt::Debug for PwBoxBuilder<'a, K, C> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("PwBoxBuilder")
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("PwBoxBuilder")
             .field("custom_kdf", &self.kdf.is_some())
             .finish()
     }

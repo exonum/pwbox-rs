@@ -170,8 +170,9 @@ pub struct Eraser {
 }
 
 impl fmt::Debug for Eraser {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Eraser")
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Eraser")
             .field("ciphers", &self.ciphers.keys().collect::<Vec<_>>())
             .field("kdfs", &self.kdfs.keys().collect::<Vec<_>>())
             .finish()
@@ -378,7 +379,7 @@ pub trait Suite {
     /// Initializes a `PwBoxBuilder` with the recommended cipher and KDF.
     fn build_box<R: RngCore + CryptoRng>(
         rng: &mut R,
-    ) -> PwBoxBuilder<Self::DeriveKey, Self::Cipher> {
+    ) -> PwBoxBuilder<'_, Self::DeriveKey, Self::Cipher> {
         PwBoxBuilder::new(rng)
     }
 

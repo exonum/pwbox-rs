@@ -43,8 +43,8 @@ impl SensitiveData {
 }
 
 impl fmt::Debug for SensitiveData {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_tuple("SensitiveData").field(&"_").finish()
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.debug_tuple("SensitiveData").field(&"_").finish()
     }
 }
 
@@ -82,8 +82,8 @@ impl LogNTransform {
         impl<'de> Visitor<'de> for Log2Visitor {
             type Value = u8;
 
-            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                f.write_str("a power of two")
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str("a power of two")
             }
 
             fn visit_u64<E: DeError>(self, value: u64) -> Result<Self::Value, E> {
