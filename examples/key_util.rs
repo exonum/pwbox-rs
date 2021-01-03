@@ -208,7 +208,7 @@ impl Args {
                 check,
                 passphrase,
             } => {
-                let input = if file == "" || file == "-" {
+                let input = if file.is_empty() || file == "-" {
                     let mut buffer = vec![];
                     io::stdin().read_to_end(&mut buffer)?;
                     buffer
