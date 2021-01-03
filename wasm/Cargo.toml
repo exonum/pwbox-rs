@@ -8,6 +8,9 @@ description = "Testing usability of pwbox in WASM"
 repository = "https://github.com/exonum/pwbox-rs"
 publish = false
 
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Os", "--enable-mutable-globals"]
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 
