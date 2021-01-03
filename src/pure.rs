@@ -31,7 +31,7 @@ impl Cipher for ChaCha20Poly1305 {
     const MAC_LEN: usize = 16;
 
     fn seal(message: &[u8], nonce: &[u8], key: &[u8]) -> CipherOutput {
-        let mut buffer = Self::new(GenericArray::clone_from_slice(key))
+        let mut buffer = Self::new(GenericArray::from_slice(key))
             .encrypt(GenericArray::from_slice(nonce), message)
             .expect("Cannot encrypt with ChaCha20Poly1305");
         assert!(
@@ -55,7 +55,7 @@ impl Cipher for ChaCha20Poly1305 {
         encryption.extend_from_slice(&encrypted.ciphertext);
         encryption.extend_from_slice(&encrypted.mac);
 
-        Self::new(GenericArray::clone_from_slice(key))
+        Self::new(GenericArray::from_slice(key))
             .decrypt(GenericArray::from_slice(nonce), &*encryption)
             .map(|plaintext| {
                 output.copy_from_slice(&plaintext);

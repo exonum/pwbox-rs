@@ -134,7 +134,8 @@ impl<'a> PointerComponent<'a> {
 
 #[structopt(
     name = "Simple key util",
-    raw(after_help = "HELP", set_term_width = "80")
+    after_help = HELP,
+    set_term_width = 80
 )]
 #[derive(Debug, StructOpt)]
 enum Args {
@@ -151,7 +152,7 @@ enum Args {
             name = "scrypt",
             long,
             short,
-            parse(try_from_str = "parse_scrypt"),
+            parse(try_from_str = parse_scrypt),
             default_value = "interactive"
         )]
         scrypt: Scrypt,
