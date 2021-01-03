@@ -8,8 +8,13 @@ readme = "README.md"
 edition = "2018"
 license = "Apache-2.0"
 keywords = ["cryptography", "encryption", "password-based", "exonum"]
-categories = ["cryptography"]
+categories = ["cryptography", "no-std"]
 description = "Modular password-based encryption"
+
+[package.metadata.docs.rs]
+all-features = true
+# Set `docsrs` to enable unstable `doc(cfg(...))` attributes.
+rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 anyhow = { version = "1.0.26", default-features = false }
