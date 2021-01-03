@@ -125,7 +125,7 @@ impl DeriveKey for Scrypt {
 /// # }
 /// ```
 #[derive(Debug)]
-pub enum PureCrypto {}
+pub struct PureCrypto(());
 
 impl Suite for PureCrypto {
     type Cipher = ChaCha20Poly1305;

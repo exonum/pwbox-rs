@@ -37,7 +37,7 @@ use crate::{
 /// is not authenticated, it should be paired with a MAC construction (e.g., `Keccak256`)
 /// in order to create a `Cipher`.
 #[derive(Debug)]
-pub enum Aes128Ctr {}
+pub struct Aes128Ctr(());
 
 impl UnauthenticatedCipher for Aes128Ctr {
     const KEY_LEN: usize = 16;
@@ -73,7 +73,7 @@ impl UnauthenticatedCipher for Aes128Ctr {
 /// [length extension]: https://en.wikipedia.org/wiki/Length_extension_attack
 /// [HMAC]: https://en.wikipedia.org/wiki/HMAC
 #[derive(Debug)]
-pub enum Keccak256 {}
+pub struct Keccak256(());
 
 impl Mac for Keccak256 {
     const KEY_LEN: usize = 16;
@@ -178,7 +178,7 @@ impl Cipher for Aes128Gcm {
 /// # }
 /// ```
 #[derive(Debug)]
-pub enum RustCrypto {}
+pub struct RustCrypto(());
 
 impl Suite for RustCrypto {
     type Cipher = CipherWithMac<Aes128Ctr, Keccak256>;
@@ -269,8 +269,8 @@ mod tests {
             .seal(PASSWORD, MESSAGE)
             .unwrap();
 
-        let erased = eraser.erase(&pwbox).unwrap();
-        let pwbox_copy = eraser.restore(&erased).unwrap();
+        let erased_box = eraser.erase(&pwbox).unwrap();
+        let pwbox_copy = eraser.restore(&erased_box).unwrap();
         assert_eq!(MESSAGE, &*pwbox_copy.open(PASSWORD).unwrap());
     }
 
@@ -299,8 +299,8 @@ mod tests {
         let eraser = eraser.add_suite::<RustCrypto>();
 
         let message = hex::decode(MESSAGE_HEX).unwrap();
-        let erased: ErasedPwBox = serde_json::from_str(&PWBOX).unwrap();
-        let pwbox = eraser.restore(&erased).unwrap();
+        let erased_box: ErasedPwBox = serde_json::from_str(&PWBOX).unwrap();
+        let pwbox = eraser.restore(&erased_box).unwrap();
         assert_eq!(message, &*pwbox.open(PASSWORD).unwrap());
     }
 }

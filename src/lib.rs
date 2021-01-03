@@ -86,7 +86,14 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![doc(html_root_url = "https://docs.rs/pwbox/0.3.0")]
-#![deny(missing_docs, missing_debug_implementations)]
+#![warn(missing_docs, missing_debug_implementations)]
+#![warn(clippy::all, clippy::pedantic)]
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::must_use_candidate,
+    clippy::module_name_repetitions,
+    clippy::doc_markdown
+)]
 
 use rand_core::{CryptoRng, RngCore};
 use serde_json::Error as JsonError;
@@ -426,7 +433,7 @@ where
         password: impl AsRef<[u8]>,
         data: impl AsRef<[u8]>,
     ) -> anyhow::Result<PwBox<K, C>> {
-        let cipher: CipherObject<C> = Default::default();
+        let cipher = CipherObject::<C>::default();
         let kdf = self.kdf.clone().unwrap_or_default();
         PwBoxInner::seal(kdf, cipher, self.rng, password, data).map(|inner| PwBox { inner })
     }

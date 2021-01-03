@@ -53,6 +53,8 @@ impl Default for Scrypt {
 
 impl Scrypt {
     /// Returns the "interactive" `scrypt` parameters as defined in libsodium.
+    #[allow(clippy::cast_possible_truncation)]
+    // ^-- conversion is safe; using `try_from` is impossible because of the const context.
     pub const fn interactive() -> Self {
         Scrypt {
             opslimit: OPSLIMIT_INTERACTIVE.0 as u32,
@@ -69,6 +71,8 @@ impl Scrypt {
     }
 
     /// Returns the "sensitive" `scrypt` parameters as defined in libsodium.
+    #[allow(clippy::cast_possible_truncation)]
+    // ^-- conversion is safe; using `try_from` is impossible because of the const context.
     pub const fn sensitive() -> Self {
         Scrypt {
             opslimit: OPSLIMIT_SENSITIVE.0 as u32,
@@ -197,7 +201,7 @@ impl Cipher for ChaCha20Poly1305 {
 ///
 /// See crate-level docs for the example of usage.
 #[derive(Debug)]
-pub enum Sodium {}
+pub struct Sodium(());
 
 impl Suite for Sodium {
     type Cipher = XSalsa20Poly1305;

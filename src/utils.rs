@@ -17,7 +17,7 @@ use serde::{de::Visitor, Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use smallvec::{smallvec, SmallVec};
 
-use core::{fmt, ops::Deref};
+use core::{convert::TryFrom, fmt, ops::Deref};
 
 /// Expected upper bound on byte buffers created during encryption / decryption.
 const BUFFER_SIZE: usize = 256;
@@ -65,7 +65,7 @@ impl Drop for SensitiveData {
     }
 }
 
-enum LogNTransform {}
+struct LogNTransform;
 
 impl LogNTransform {
     #[allow(clippy::trivially_copy_pass_by_ref)]
@@ -93,7 +93,8 @@ impl LogNTransform {
                 if !value.is_power_of_two() {
                     return Err(E::custom("not a power of two"));
                 }
-                Ok(63 - value.leading_zeros() as u8)
+                // `try_from` is infallible: the number of leading zeros is <= 63
+                Ok(63 - u8::try_from(value.leading_zeros()).unwrap())
             }
         }
 
