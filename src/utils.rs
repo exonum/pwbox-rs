@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use clear_on_drop::ClearOnDrop;
 use serde::{de::Visitor, Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use smallvec::{smallvec, SmallVec};
+use zeroize::Zeroize;
 
 use core::{convert::TryFrom, fmt, ops::Deref};
 
@@ -58,8 +58,7 @@ impl Deref for SensitiveData {
 
 impl Drop for SensitiveData {
     fn drop(&mut self) {
-        let handle = ClearOnDrop::new(&mut self.0);
-        drop(handle); // this is where the bytes are cleared
+        Zeroize::zeroize(self.0.as_mut_slice());
     }
 }
 

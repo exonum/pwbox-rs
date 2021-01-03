@@ -15,7 +15,6 @@
 //! `rust-crypto` cryptographic backend.
 
 use anyhow::Error;
-use clear_on_drop::ClearOnDrop;
 use crypto::{
     aead::{AeadDecryptor, AeadEncryptor},
     aes, aes_gcm,
@@ -24,6 +23,7 @@ use crypto::{
     sha3::Sha3,
 };
 use serde::{Deserialize, Serialize};
+use zeroize::Zeroizing;
 
 use crate::{
     alloc::{vec, Vec},
@@ -44,8 +44,7 @@ impl UnauthenticatedCipher for Aes128Ctr {
     const NONCE_LEN: usize = 16;
 
     fn seal_or_open(message: &mut [u8], nonce: &[u8], key: &[u8]) {
-        let mut output = vec![0; message.len()];
-        let mut output = ClearOnDrop::new(&mut output);
+        let mut output = Zeroizing::new(vec![0; message.len()]);
         aes::ctr(aes::KeySize::KeySize128, key, nonce).process(message, &mut *output);
         message.copy_from_slice(&output);
     }
