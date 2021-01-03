@@ -29,8 +29,6 @@ const BUFFER_SIZE: usize = 256;
 /// The container is zeroed on drop. Internally, it uses [`SmallVec`]; hence,
 /// the data with size <= 256 bytes is stored on stack, which further
 /// reduces possibility of data leakage.
-///
-/// [`SmallVec`]: https://docs.rs/smallvec/0.6.6/smallvec/struct.SmallVec.html
 #[derive(Clone)]
 pub struct SensitiveData(SmallVec<[u8; BUFFER_SIZE]>);
 

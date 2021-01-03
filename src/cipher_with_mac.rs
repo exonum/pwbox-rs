@@ -31,9 +31,8 @@ pub trait UnauthenticatedCipher: 'static {
     ///
     /// # Safety
     ///
-    /// When used within [`PwBox`], `nonce` and `key` are guaranteed to have correct sizes.
-    ///
-    /// [`PwBox`]: struct.PwBox.html
+    /// When used within [`PwBox`](crate::PwBox), `nonce` and `key` are guaranteed
+    /// to have correct sizes.
     fn seal_or_open(message: &mut [u8], nonce: &[u8], key: &[u8]);
 }
 
@@ -50,9 +49,7 @@ pub trait Mac: 'static {
     ///
     /// # Safety
     ///
-    /// When used within [`PwBox`], `key` is guaranteed to have the correct size.
-    ///
-    /// [`PwBox`]: struct.PwBox.html
+    /// When used within [`PwBox`](crate::PwBox), `key` is guaranteed to have the correct size.
     fn digest(key: &[u8], message: &[u8]) -> Vec<u8>;
 }
 

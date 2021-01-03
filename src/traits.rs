@@ -29,14 +29,12 @@ use crate::alloc::{Box, Vec};
 ///
 /// # Implementation notes
 ///
-/// If you want to use a `DeriveKey` implementation with an [`Eraser`], it should
+/// If you want to use a `DeriveKey` implementation with an [`Eraser`](crate::Eraser), it should
 /// additionally implement the following traits:
 ///
-/// - `Default` (should return a KDF instance with reasonable difficulty params)
-/// - `Clone`
-/// - `Serialize` / `Deserialize` from `serde`
-///
-/// [`Eraser`]: struct.Eraser.html
+/// - [`Default`] (should return a KDF instance with reasonable difficulty params)
+/// - [`Clone`]
+/// - [`Serialize`] / [`Deserialize`] from `serde`
 pub trait DeriveKey: 'static {
     /// Returns byte size of salt supplied to the KDF.
     fn salt_len(&self) -> usize;
@@ -72,9 +70,8 @@ pub trait Cipher: 'static {
     ///
     /// # Safety
     ///
-    /// When used within [`PwBox`], `key` and `nonce` are guaranteed to have correct sizes.
-    ///
-    /// [`PwBox`]: struct.PwBox.html
+    /// When used within [`PwBox`](crate::PwBox), `key` and `nonce` are guaranteed
+    /// to have correct sizes.
     fn seal(message: &[u8], nonce: &[u8], key: &[u8]) -> CipherOutput;
 
     /// Decrypts `encrypted` message with the provided `key` and `nonce` and stores
@@ -82,10 +79,8 @@ pub trait Cipher: 'static {
     ///
     /// # Safety
     ///
-    /// When used within [`PwBox`], `key`, `nonce`, `encrypted.mac` and `output` are guaranteed to
-    /// have correct sizes.
-    ///
-    /// [`PwBox`]: struct.PwBox.html
+    /// When used within [`PwBox`](crate::PwBox), `key`, `nonce`, `encrypted.mac` and `output`
+    /// are guaranteed to have correct sizes.
     fn open(
         output: &mut [u8],
         encrypted: &CipherOutput,

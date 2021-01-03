@@ -31,16 +31,10 @@
 //! There is also [`Eraser`], which allows to (de)serialize [`PwBox`]es from any `serde`-compatible
 //! format, such as JSON or TOML.
 //!
-//! [`PwBox`]: struct.PwBox.html
-//! [key derivation]: trait.DeriveKey.html
-//! [`Cipher`]: trait.Cipher.html
-//! [`UnauthenticatedCipher`]: trait.UnauthenticatedCipher.html
-//! [`Mac`]: trait.Mac.html
-//! [`Suite`]: trait.Suite.html
-//! [`Sodium`]: sodium/enum.Sodium.html
-//! [`RustCrypto`]: rcrypto/enum.RustCrypto.html
-//! [`PureCrypto`]: pure/enum.PureCrypto.html
-//! [`Eraser`]: struct.Eraser.html
+//! [key derivation]: DeriveKey
+//! [`Sodium`]: sodium::Sodium
+//! [`RustCrypto`]: rcrypto::RustCrypto
+//! [`PureCrypto`]: pure::PureCrypto
 //!
 //! # Naming
 //!
@@ -85,6 +79,7 @@
 //! ```
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc(html_root_url = "https://docs.rs/pwbox/0.3.0")]
 #![warn(missing_docs, missing_debug_implementations)]
 #![warn(clippy::all, clippy::pedantic)]
@@ -122,10 +117,13 @@ mod alloc {
 
 // Crypto backends.
 #[cfg(feature = "pure")]
+#[cfg_attr(docsrs, doc(cfg(feature = "pure")))]
 pub mod pure;
 #[cfg(feature = "rust-crypto")]
+#[cfg_attr(docsrs, doc(cfg(feature = "rust-crypto")))]
 pub mod rcrypto;
 #[cfg(feature = "exonum_sodiumoxide")]
+#[cfg_attr(docsrs, doc(cfg(feature = "exonum_sodiumoxide")))]
 pub mod sodium;
 
 pub use crate::{
@@ -149,9 +147,6 @@ pub enum Error {
     ///
     /// Register the cipher with the help of [`Eraser::add_cipher()`]
     /// or [`Eraser::add_suite()`] methods.
-    ///
-    /// [`Eraser::add_cipher()`]: struct.Eraser.html#method.add_cipher
-    /// [`Eraser::add_suite()`]: struct.Eraser.html#method.add_suite
     NoCipher(String),
 
     /// A key derivation function with the specified name is not registered.
@@ -160,9 +155,6 @@ pub enum Error {
     ///
     /// Register the cipher with the help of [`Eraser::add_kdf()`]
     /// or [`Eraser::add_suite()`] methods.
-    ///
-    /// [`Eraser::add_kdf()`]: struct.Eraser.html#method.add_kdf
-    /// [`Eraser::add_suite()`]: struct.Eraser.html#method.add_suite
     NoKdf(String),
 
     /// Failed to parse KDF parameters.
@@ -303,8 +295,6 @@ impl<K: DeriveKey, C: ObjectSafeCipher> PwBoxInner<K, C> {
 /// # See also
 ///
 /// See the crate docs for an example of usage. See [`ErasedPwBox`] for serialization details.
-///
-/// [`ErasedPwBox`]: struct.ErasedPwBox.html
 #[derive(Debug)]
 pub struct PwBox<K, C> {
     inner: PwBoxInner<K, CipherObject<C>>,
@@ -352,9 +342,7 @@ impl<K: DeriveKey, C: Cipher> PwBox<K, C> {
 /// Password-encrypted box restored after deserialization.
 ///
 /// If the box may be corrupted, it may make sense to check its length
-/// with the [`len()`] method before `open`ing the box.
-///
-/// [`len()`]: #method.len
+/// with the [`Self::len()`] method before `open`ing the box.
 pub struct RestoredPwBox {
     inner: PwBoxInner<Box<dyn DeriveKey>, Box<dyn ObjectSafeCipher>>,
 }
