@@ -1,0 +1,196 @@
+name: Rust
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  # Minimum supported Rust version.
+  msrv: 1.44.0
+  # Nightly Rust toolchain for no-std build.
+  nightly: nightly-2020-10-24
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Sodium packages
+        run: |
+          sudo -E apt-add-repository -y 'ppa:fsgmhoward/shadowsocks-libev'
+          sudo apt-get update
+          sudo apt-get install -y --no-install-suggests --no-install-recommends libsodium-dev
+
+      - name: Cache cargo bins
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/bin
+          key: ${{ runner.os }}-cargo-bin
+      - name: Cache cargo build
+        uses: actions/cache@v1
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: wasm32-unknown-unknown
+          override: true
+          components: rustfmt, clippy
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.3.0
+        with:
+          version: 'latest'
+      - name: Install deadlinks
+        run: cargo deadlinks -V | grep $DEADLINKS_VERS || cargo install cargo-deadlinks --vers $DEADLINKS_VERS --force
+        env:
+          DEADLINKS_VERS: 0.4.1
+      - name: Install Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: '14'
+
+      - name: Format
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+      - name: Clippy
+        uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all --all-targets -- -D warnings
+
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --all-features
+      - name: Run Sodium keypair example
+        uses: actions-rs/cargo@v1
+        with:
+          command: run
+          args: --example sodium_keypair
+      - name: Run E2E tests for key util
+        run: bash tests/e2e/key_util.sh
+
+      - name: Compile WASM
+        run: (cd wasm; wasm-pack build --target nodejs)
+      - name: Run WASM
+        run: node wasm/test.js
+
+      - name: Check docs
+        run: cargo clean --doc && cargo doc --all-features --no-deps && cargo deadlinks --dir target/doc
+
+  build-msrv:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Sodium packages
+        run: |
+          sudo -E apt-add-repository -y 'ppa:fsgmhoward/shadowsocks-libev'
+          sudo apt-get update
+          sudo apt-get install -y --no-install-suggests --no-install-recommends libsodium-dev
+
+      - name: Cache cargo build
+        uses: actions/cache@v1
+        with:
+          path: target
+          key: ${{ runner.os }}-msrv-cargo-build-target
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.msrv }}
+          override: true
+          profile: minimal
+
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --all-features
+      - name: Run Sodium keypair example
+        uses: actions-rs/cargo@v1
+        with:
+          command: run
+          args: --example sodium_keypair
+      - name: Run E2E tests for key util
+        run: bash tests/e2e/key_util.sh
+
+  build-nostd:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Cache cargo build
+        uses: actions/cache@v1
+        with:
+          path: target
+          key: ${{ runner.os }}-nostd-cargo-build-target
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.nightly }}
+          target: thumbv7m-none-eabi
+          override: true
+          profile: minimal
+
+      - name: Build library
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --lib --no-default-features --features pure --target thumbv7m-none-eabi -Z avoid-dev-deps
+
+  document:
+    needs:
+      - build
+      - build-msrv
+      - build-nostd
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+
+      - name: Install Sodium packages
+        run: |
+          sudo -E apt-add-repository -y 'ppa:fsgmhoward/shadowsocks-libev'
+          sudo apt-get update
+          sudo apt-get install -y --no-install-suggests --no-install-recommends libsodium-dev
+
+      - name: Cache cargo build
+        uses: actions/cache@v1
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          profile: minimal
+
+      - name: Build docs
+        run: cargo rustdoc --all-features -- --cfg docsrs
+
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@releases/v3
+        with:
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          BRANCH: gh-pages
+          FOLDER: target/doc
+          SINGLE_COMMIT: true
