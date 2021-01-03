@@ -39,6 +39,7 @@ serde_cbor = "0.10.0"
 serde_yaml = "0.8.9"
 structopt = "0.2.18"
 toml = "0.5.1"
+version-sync = "0.9.1"
 
 [features]
 default = ["std", "exonum_sodiumoxide"]

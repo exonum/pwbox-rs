@@ -276,8 +276,6 @@ mod tests {
 
     #[test]
     fn ethstore_compatibility() {
-        use serde_json;
-
         const PASSWORD: &str = "foo";
         const MESSAGE_HEX: &str = "fa7b3db73dc7dfdf8c5fbdb796d741e4488628c41fc4febd9160a866ba0f35";
         const PWBOX: &str = r#"{

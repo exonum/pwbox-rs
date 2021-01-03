@@ -17,6 +17,13 @@ regarding its safety. Use at your own risk.
 
 ## Usage
 
+Add this to your `Crate.toml`:
+
+```toml
+[dependencies]
+pwbox = "0.3.0"
+``` 
+
 See crate documentation for more details how to use the crate.
 
 ### Crate Features

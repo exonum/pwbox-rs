@@ -85,6 +85,7 @@
 //! ```
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![doc(html_root_url = "https://docs.rs/pwbox/0.3.0")]
 #![deny(missing_docs, missing_debug_implementations)]
 
 use rand_core::{CryptoRng, RngCore};
