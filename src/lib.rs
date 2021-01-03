@@ -129,7 +129,7 @@ pub mod sodium;
 pub use crate::{
     cipher_with_mac::{CipherWithMac, Mac, UnauthenticatedCipher},
     erased::{EraseError, ErasedPwBox, Eraser, Suite},
-    traits::{Cipher, CipherOutput, DeriveKey},
+    traits::{Cipher, CipherOutput, DeriveKey, MacMismatch},
     utils::{ScryptParams, SensitiveData},
 };
 
@@ -280,7 +280,7 @@ impl<K: DeriveKey, C: ObjectSafeCipher> PwBoxInner<K, C> {
 
         self.cipher
             .open(output.as_mut(), &self.encrypted, &self.nonce, &*key)
-            .map_err(|()| Error::MacMismatch)
+            .map_err(|_| Error::MacMismatch)
     }
 
     fn open(&self, password: impl AsRef<[u8]>) -> Result<SensitiveData, Error> {

@@ -27,7 +27,7 @@ use zeroize::Zeroizing;
 
 use crate::{
     alloc::{vec, Vec},
-    Cipher, CipherOutput, CipherWithMac, DeriveKey, Eraser, Mac, ScryptParams, Suite,
+    Cipher, CipherOutput, CipherWithMac, DeriveKey, Eraser, Mac, MacMismatch, ScryptParams, Suite,
     UnauthenticatedCipher,
 };
 
@@ -128,13 +128,18 @@ impl Cipher for Aes128Gcm {
         CipherOutput { ciphertext, mac }
     }
 
-    fn open(output: &mut [u8], enc: &CipherOutput, nonce: &[u8], key: &[u8]) -> Result<(), ()> {
+    fn open(
+        output: &mut [u8],
+        enc: &CipherOutput,
+        nonce: &[u8],
+        key: &[u8],
+    ) -> Result<(), MacMismatch> {
         let mut cipher = aes_gcm::AesGcm::new(aes::KeySize::KeySize128, key, nonce, &[]);
 
         if cipher.decrypt(&enc.ciphertext, output, &enc.mac) {
             Ok(())
         } else {
-            Err(())
+            Err(MacMismatch)
         }
     }
 }

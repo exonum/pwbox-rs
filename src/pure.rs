@@ -23,7 +23,9 @@ use chacha20poly1305::{
 use scrypt::{scrypt, ScryptParams as Params};
 use serde::{Deserialize, Serialize};
 
-use crate::{alloc::Vec, Cipher, CipherOutput, DeriveKey, Eraser, ScryptParams, Suite};
+use crate::{
+    alloc::Vec, Cipher, CipherOutput, DeriveKey, Eraser, MacMismatch, ScryptParams, Suite,
+};
 
 impl Cipher for ChaCha20Poly1305 {
     const KEY_LEN: usize = 32;
@@ -50,7 +52,7 @@ impl Cipher for ChaCha20Poly1305 {
         encrypted: &CipherOutput,
         nonce: &[u8],
         key: &[u8],
-    ) -> Result<(), ()> {
+    ) -> Result<(), MacMismatch> {
         let mut encryption = Vec::with_capacity(encrypted.ciphertext.len() + Self::MAC_LEN);
         encryption.extend_from_slice(&encrypted.ciphertext);
         encryption.extend_from_slice(&encrypted.mac);
@@ -60,7 +62,7 @@ impl Cipher for ChaCha20Poly1305 {
             .map(|plaintext| {
                 output.copy_from_slice(&plaintext);
             })
-            .map_err(drop)
+            .map_err(|_| MacMismatch)
     }
 }
 

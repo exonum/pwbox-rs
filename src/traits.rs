@@ -18,7 +18,7 @@ use anyhow::Error;
 use hex_buffer_serde::{Hex as _, HexForm};
 use serde::{Deserialize, Serialize};
 
-use core::marker::PhantomData;
+use core::{fmt, marker::PhantomData};
 
 use crate::alloc::{Box, Vec};
 
@@ -57,6 +57,19 @@ impl DeriveKey for Box<dyn DeriveKey> {
     }
 }
 
+/// Error corresponding to MAC mismatch in [`Cipher::open()`].
+#[derive(Debug, Clone, Default)]
+pub struct MacMismatch;
+
+impl fmt::Display for MacMismatch {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("MAC mismatch")
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for MacMismatch {}
+
 /// Authenticated symmetric cipher.
 pub trait Cipher: 'static {
     /// Byte size of a key.
@@ -86,7 +99,7 @@ pub trait Cipher: 'static {
         encrypted: &CipherOutput,
         nonce: &[u8],
         key: &[u8],
-    ) -> Result<(), ()>;
+    ) -> Result<(), MacMismatch>;
 }
 
 /// Helper for converting `Cipher`s into `ObjectSafeCipher`s.
@@ -106,13 +119,14 @@ pub(crate) trait ObjectSafeCipher: 'static {
     fn mac_len(&self) -> usize;
 
     fn seal(&self, message: &[u8], nonce: &[u8], key: &[u8]) -> CipherOutput;
+
     fn open(
         &self,
         output: &mut [u8],
         encrypted: &CipherOutput,
         nonce: &[u8],
         key: &[u8],
-    ) -> Result<(), ()>;
+    ) -> Result<(), MacMismatch>;
 }
 
 /// Output of a `Cipher`.
@@ -150,7 +164,7 @@ impl<T: Cipher> ObjectSafeCipher for CipherObject<T> {
         encrypted: &CipherOutput,
         nonce: &[u8],
         key: &[u8],
-    ) -> Result<(), ()> {
+    ) -> Result<(), MacMismatch> {
         T::open(output, encrypted, nonce, key)
     }
 }
@@ -178,7 +192,7 @@ impl ObjectSafeCipher for Box<dyn ObjectSafeCipher> {
         encrypted: &CipherOutput,
         nonce: &[u8],
         key: &[u8],
-    ) -> Result<(), ()> {
+    ) -> Result<(), MacMismatch> {
         (**self).open(output, encrypted, nonce, key)
     }
 }

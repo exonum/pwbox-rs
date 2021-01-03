@@ -18,7 +18,7 @@ use constant_time_eq::constant_time_eq;
 
 use core::marker::PhantomData;
 
-use crate::{alloc::Vec, Cipher, CipherOutput};
+use crate::{alloc::Vec, Cipher, CipherOutput, MacMismatch};
 
 /// Symmetric cipher without built-in authentication.
 pub trait UnauthenticatedCipher: 'static {
@@ -99,14 +99,19 @@ where
     /// 2. Compute MAC over the ciphertext with `mac_key`. If MAC is not equal to
     ///   the supplied one, return `None`.
     /// 3. Decrypt the ciphertext under the `cipher_key` and `nonce`.
-    fn open(output: &mut [u8], enc: &CipherOutput, nonce: &[u8], key: &[u8]) -> Result<(), ()> {
+    fn open(
+        output: &mut [u8],
+        enc: &CipherOutput,
+        nonce: &[u8],
+        key: &[u8],
+    ) -> Result<(), MacMismatch> {
         debug_assert_eq!(key.len(), Self::KEY_LEN);
         debug_assert_eq!(enc.mac.len(), Self::MAC_LEN);
         debug_assert_eq!(output.len(), enc.ciphertext.len());
 
         let (cipher_key, mac_key) = (&key[..C::KEY_LEN], &key[C::KEY_LEN..]);
         if !constant_time_eq(&M::digest(mac_key, &enc.ciphertext), &enc.mac) {
-            return Err(());
+            return Err(MacMismatch);
         }
 
         output.copy_from_slice(&enc.ciphertext);
