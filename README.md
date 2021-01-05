@@ -21,7 +21,7 @@ Add this to your `Crate.toml`:
 
 ```toml
 [dependencies]
-pwbox = "0.3.0"
+pwbox = "0.4.0"
 ``` 
 
 See crate documentation for more details how to use the crate.
