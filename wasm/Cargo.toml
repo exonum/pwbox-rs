@@ -8,11 +8,14 @@ description = "Testing usability of pwbox in WASM"
 repository = "https://github.com/exonum/pwbox-rs"
 publish = false
 
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Os", "--enable-mutable-globals"]
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 pwbox = { path = "..", default-features = false, features = ["pure"] }
-rand_core = "0.5.0"
+rand_core = "0.6.0"
 # WASM glue
-wasm-bindgen = { version = "0.2.50", features = ["serde-serialize"] }
+wasm-bindgen = { version = "0.2.69", features = ["serde-serialize"] }

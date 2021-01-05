@@ -21,14 +21,14 @@ use exonum_sodiumoxide::crypto::sign::{
 use hex_buffer_serde::Hex;
 use pwbox::{sodium::Sodium, ErasedPwBox, Eraser, RestoredPwBox, Suite};
 use rand::thread_rng;
-use serde_derive::*;
+use serde::{Deserialize, Serialize};
 
 use std::borrow::Cow;
 
 enum PublicKeyHex {}
 
 impl Hex<PublicKey> for PublicKeyHex {
-    fn create_bytes(value: &PublicKey) -> Cow<[u8]> {
+    fn create_bytes(value: &PublicKey) -> Cow<'_, [u8]> {
         Cow::Borrowed(&value.0)
     }
 

@@ -16,9 +16,9 @@
 
 use anyhow::Error;
 use hex_buffer_serde::{Hex as _, HexForm};
-use serde_derive::*;
+use serde::{Deserialize, Serialize};
 
-use core::marker::PhantomData;
+use core::{fmt, marker::PhantomData};
 
 use crate::alloc::{Box, Vec};
 
@@ -29,14 +29,12 @@ use crate::alloc::{Box, Vec};
 ///
 /// # Implementation notes
 ///
-/// If you want to use a `DeriveKey` implementation with an [`Eraser`], it should
+/// If you want to use a `DeriveKey` implementation with an [`Eraser`](crate::Eraser), it should
 /// additionally implement the following traits:
 ///
-/// - `Default` (should return a KDF instance with reasonable difficulty params)
-/// - `Clone`
-/// - `Serialize` / `Deserialize` from `serde`
-///
-/// [`Eraser`]: struct.Eraser.html
+/// - [`Default`] (should return a KDF instance with reasonable difficulty params)
+/// - [`Clone`]
+/// - [`Serialize`] / [`Deserialize`] from `serde`
 pub trait DeriveKey: 'static {
     /// Returns byte size of salt supplied to the KDF.
     fn salt_len(&self) -> usize;
@@ -59,6 +57,19 @@ impl DeriveKey for Box<dyn DeriveKey> {
     }
 }
 
+/// Error corresponding to MAC mismatch in [`Cipher::open()`].
+#[derive(Debug, Clone, Default)]
+pub struct MacMismatch;
+
+impl fmt::Display for MacMismatch {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("MAC mismatch")
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for MacMismatch {}
+
 /// Authenticated symmetric cipher.
 pub trait Cipher: 'static {
     /// Byte size of a key.
@@ -72,9 +83,8 @@ pub trait Cipher: 'static {
     ///
     /// # Safety
     ///
-    /// When used within [`PwBox`], `key` and `nonce` are guaranteed to have correct sizes.
-    ///
-    /// [`PwBox`]: struct.PwBox.html
+    /// When used within [`PwBox`](crate::PwBox), `key` and `nonce` are guaranteed
+    /// to have correct sizes.
     fn seal(message: &[u8], nonce: &[u8], key: &[u8]) -> CipherOutput;
 
     /// Decrypts `encrypted` message with the provided `key` and `nonce` and stores
@@ -82,16 +92,14 @@ pub trait Cipher: 'static {
     ///
     /// # Safety
     ///
-    /// When used within [`PwBox`], `key`, `nonce`, `encrypted.mac` and `output` are guaranteed to
-    /// have correct sizes.
-    ///
-    /// [`PwBox`]: struct.PwBox.html
+    /// When used within [`PwBox`](crate::PwBox), `key`, `nonce`, `encrypted.mac` and `output`
+    /// are guaranteed to have correct sizes.
     fn open(
         output: &mut [u8],
         encrypted: &CipherOutput,
         nonce: &[u8],
         key: &[u8],
-    ) -> Result<(), ()>;
+    ) -> Result<(), MacMismatch>;
 }
 
 /// Helper for converting `Cipher`s into `ObjectSafeCipher`s.
@@ -111,13 +119,14 @@ pub(crate) trait ObjectSafeCipher: 'static {
     fn mac_len(&self) -> usize;
 
     fn seal(&self, message: &[u8], nonce: &[u8], key: &[u8]) -> CipherOutput;
+
     fn open(
         &self,
         output: &mut [u8],
         encrypted: &CipherOutput,
         nonce: &[u8],
         key: &[u8],
-    ) -> Result<(), ()>;
+    ) -> Result<(), MacMismatch>;
 }
 
 /// Output of a `Cipher`.
@@ -155,7 +164,7 @@ impl<T: Cipher> ObjectSafeCipher for CipherObject<T> {
         encrypted: &CipherOutput,
         nonce: &[u8],
         key: &[u8],
-    ) -> Result<(), ()> {
+    ) -> Result<(), MacMismatch> {
         T::open(output, encrypted, nonce, key)
     }
 }
@@ -183,7 +192,7 @@ impl ObjectSafeCipher for Box<dyn ObjectSafeCipher> {
         encrypted: &CipherOutput,
         nonce: &[u8],
         key: &[u8],
-    ) -> Result<(), ()> {
+    ) -> Result<(), MacMismatch> {
         (**self).open(output, encrypted, nonce, key)
     }
 }

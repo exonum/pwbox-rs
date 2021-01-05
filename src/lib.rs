@@ -31,16 +31,10 @@
 //! There is also [`Eraser`], which allows to (de)serialize [`PwBox`]es from any `serde`-compatible
 //! format, such as JSON or TOML.
 //!
-//! [`PwBox`]: struct.PwBox.html
-//! [key derivation]: trait.DeriveKey.html
-//! [`Cipher`]: trait.Cipher.html
-//! [`UnauthenticatedCipher`]: trait.UnauthenticatedCipher.html
-//! [`Mac`]: trait.Mac.html
-//! [`Suite`]: trait.Suite.html
-//! [`Sodium`]: sodium/enum.Sodium.html
-//! [`RustCrypto`]: rcrypto/enum.RustCrypto.html
-//! [`PureCrypto`]: pure/enum.PureCrypto.html
-//! [`Eraser`]: struct.Eraser.html
+//! [key derivation]: DeriveKey
+//! [`Sodium`]: sodium::Sodium
+//! [`RustCrypto`]: rcrypto::RustCrypto
+//! [`PureCrypto`]: pure::PureCrypto
 //!
 //! # Naming
 //!
@@ -85,7 +79,16 @@
 //! ```
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![deny(missing_docs, missing_debug_implementations)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![doc(html_root_url = "https://docs.rs/pwbox/0.3.0")]
+#![warn(missing_docs, missing_debug_implementations)]
+#![warn(clippy::all, clippy::pedantic)]
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::must_use_candidate,
+    clippy::module_name_repetitions,
+    clippy::doc_markdown
+)]
 
 use rand_core::{CryptoRng, RngCore};
 use serde_json::Error as JsonError;
@@ -114,16 +117,19 @@ mod alloc {
 
 // Crypto backends.
 #[cfg(feature = "pure")]
+#[cfg_attr(docsrs, doc(cfg(feature = "pure")))]
 pub mod pure;
 #[cfg(feature = "rust-crypto")]
+#[cfg_attr(docsrs, doc(cfg(feature = "rust-crypto")))]
 pub mod rcrypto;
 #[cfg(feature = "exonum_sodiumoxide")]
+#[cfg_attr(docsrs, doc(cfg(feature = "exonum_sodiumoxide")))]
 pub mod sodium;
 
 pub use crate::{
     cipher_with_mac::{CipherWithMac, Mac, UnauthenticatedCipher},
     erased::{EraseError, ErasedPwBox, Eraser, Suite},
-    traits::{Cipher, CipherOutput, DeriveKey},
+    traits::{Cipher, CipherOutput, DeriveKey, MacMismatch},
     utils::{ScryptParams, SensitiveData},
 };
 
@@ -141,9 +147,6 @@ pub enum Error {
     ///
     /// Register the cipher with the help of [`Eraser::add_cipher()`]
     /// or [`Eraser::add_suite()`] methods.
-    ///
-    /// [`Eraser::add_cipher()`]: struct.Eraser.html#method.add_cipher
-    /// [`Eraser::add_suite()`]: struct.Eraser.html#method.add_suite
     NoCipher(String),
 
     /// A key derivation function with the specified name is not registered.
@@ -152,9 +155,6 @@ pub enum Error {
     ///
     /// Register the cipher with the help of [`Eraser::add_kdf()`]
     /// or [`Eraser::add_suite()`] methods.
-    ///
-    /// [`Eraser::add_kdf()`]: struct.Eraser.html#method.add_kdf
-    /// [`Eraser::add_suite()`]: struct.Eraser.html#method.add_suite
     NoKdf(String),
 
     /// Failed to parse KDF parameters.
@@ -186,6 +186,12 @@ pub enum Error {
     /// This error can arise if the KDF was supplied with invalid parameters,
     /// which may lead or have led to a KDF-specific error (e.g., out-of-memory).
     DeriveKey(anyhow::Error),
+}
+
+impl From<MacMismatch> for Error {
+    fn from(_: MacMismatch) -> Self {
+        Self::MacMismatch
+    }
 }
 
 impl fmt::Display for Error {
@@ -280,7 +286,7 @@ impl<K: DeriveKey, C: ObjectSafeCipher> PwBoxInner<K, C> {
 
         self.cipher
             .open(output.as_mut(), &self.encrypted, &self.nonce, &*key)
-            .map_err(|()| Error::MacMismatch)
+            .map_err(From::from)
     }
 
     fn open(&self, password: impl AsRef<[u8]>) -> Result<SensitiveData, Error> {
@@ -295,8 +301,6 @@ impl<K: DeriveKey, C: ObjectSafeCipher> PwBoxInner<K, C> {
 /// # See also
 ///
 /// See the crate docs for an example of usage. See [`ErasedPwBox`] for serialization details.
-///
-/// [`ErasedPwBox`]: struct.ErasedPwBox.html
 #[derive(Debug)]
 pub struct PwBox<K, C> {
     inner: PwBoxInner<K, CipherObject<C>>,
@@ -344,16 +348,14 @@ impl<K: DeriveKey, C: Cipher> PwBox<K, C> {
 /// Password-encrypted box restored after deserialization.
 ///
 /// If the box may be corrupted, it may make sense to check its length
-/// with the [`len()`] method before `open`ing the box.
-///
-/// [`len()`]: #method.len
+/// with the [`Self::len()`] method before `open`ing the box.
 pub struct RestoredPwBox {
     inner: PwBoxInner<Box<dyn DeriveKey>, Box<dyn ObjectSafeCipher>>,
 }
 
 impl fmt::Debug for RestoredPwBox {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("RestoredPwBox").finish()
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.debug_struct("RestoredPwBox").finish()
     }
 }
 
@@ -392,8 +394,9 @@ pub struct PwBoxBuilder<'a, K, C> {
 }
 
 impl<'a, K, C> fmt::Debug for PwBoxBuilder<'a, K, C> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("PwBoxBuilder")
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("PwBoxBuilder")
             .field("custom_kdf", &self.kdf.is_some())
             .finish()
     }
@@ -425,7 +428,7 @@ where
         password: impl AsRef<[u8]>,
         data: impl AsRef<[u8]>,
     ) -> anyhow::Result<PwBox<K, C>> {
-        let cipher: CipherObject<C> = Default::default();
+        let cipher = CipherObject::<C>::default();
         let kdf = self.kdf.clone().unwrap_or_default();
         PwBoxInner::seal(kdf, cipher, self.rng, password, data).map(|inner| PwBox { inner })
     }

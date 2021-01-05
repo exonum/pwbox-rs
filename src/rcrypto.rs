@@ -15,7 +15,6 @@
 //! `rust-crypto` cryptographic backend.
 
 use anyhow::Error;
-use clear_on_drop::ClearOnDrop;
 use crypto::{
     aead::{AeadDecryptor, AeadEncryptor},
     aes, aes_gcm,
@@ -23,11 +22,12 @@ use crypto::{
     scrypt::{scrypt, ScryptParams as Params},
     sha3::Sha3,
 };
-use serde_derive::*;
+use serde::{Deserialize, Serialize};
+use zeroize::Zeroizing;
 
 use crate::{
     alloc::{vec, Vec},
-    Cipher, CipherOutput, CipherWithMac, DeriveKey, Eraser, Mac, ScryptParams, Suite,
+    Cipher, CipherOutput, CipherWithMac, DeriveKey, Eraser, Mac, MacMismatch, ScryptParams, Suite,
     UnauthenticatedCipher,
 };
 
@@ -37,15 +37,14 @@ use crate::{
 /// is not authenticated, it should be paired with a MAC construction (e.g., `Keccak256`)
 /// in order to create a `Cipher`.
 #[derive(Debug)]
-pub enum Aes128Ctr {}
+pub struct Aes128Ctr(());
 
 impl UnauthenticatedCipher for Aes128Ctr {
     const KEY_LEN: usize = 16;
     const NONCE_LEN: usize = 16;
 
     fn seal_or_open(message: &mut [u8], nonce: &[u8], key: &[u8]) {
-        let mut output = vec![0; message.len()];
-        let mut output = ClearOnDrop::new(&mut output);
+        let mut output = Zeroizing::new(vec![0; message.len()]);
         aes::ctr(aes::KeySize::KeySize128, key, nonce).process(message, &mut *output);
         message.copy_from_slice(&output);
     }
@@ -73,7 +72,7 @@ impl UnauthenticatedCipher for Aes128Ctr {
 /// [length extension]: https://en.wikipedia.org/wiki/Length_extension_attack
 /// [HMAC]: https://en.wikipedia.org/wiki/HMAC
 #[derive(Debug)]
-pub enum Keccak256 {}
+pub struct Keccak256(());
 
 impl Mac for Keccak256 {
     const KEY_LEN: usize = 16;
@@ -129,13 +128,18 @@ impl Cipher for Aes128Gcm {
         CipherOutput { ciphertext, mac }
     }
 
-    fn open(output: &mut [u8], enc: &CipherOutput, nonce: &[u8], key: &[u8]) -> Result<(), ()> {
+    fn open(
+        output: &mut [u8],
+        enc: &CipherOutput,
+        nonce: &[u8],
+        key: &[u8],
+    ) -> Result<(), MacMismatch> {
         let mut cipher = aes_gcm::AesGcm::new(aes::KeySize::KeySize128, key, nonce, &[]);
 
         if cipher.decrypt(&enc.ciphertext, output, &enc.mac) {
             Ok(())
         } else {
-            Err(())
+            Err(MacMismatch)
         }
     }
 }
@@ -178,7 +182,7 @@ impl Cipher for Aes128Gcm {
 /// # }
 /// ```
 #[derive(Debug)]
-pub enum RustCrypto {}
+pub struct RustCrypto(());
 
 impl Suite for RustCrypto {
     type Cipher = CipherWithMac<Aes128Ctr, Keccak256>;
@@ -269,15 +273,13 @@ mod tests {
             .seal(PASSWORD, MESSAGE)
             .unwrap();
 
-        let erased = eraser.erase(&pwbox).unwrap();
-        let pwbox_copy = eraser.restore(&erased).unwrap();
+        let erased_box = eraser.erase(&pwbox).unwrap();
+        let pwbox_copy = eraser.restore(&erased_box).unwrap();
         assert_eq!(MESSAGE, &*pwbox_copy.open(PASSWORD).unwrap());
     }
 
     #[test]
     fn ethstore_compatibility() {
-        use serde_json;
-
         const PASSWORD: &str = "foo";
         const MESSAGE_HEX: &str = "fa7b3db73dc7dfdf8c5fbdb796d741e4488628c41fc4febd9160a866ba0f35";
         const PWBOX: &str = r#"{
@@ -301,8 +303,8 @@ mod tests {
         let eraser = eraser.add_suite::<RustCrypto>();
 
         let message = hex::decode(MESSAGE_HEX).unwrap();
-        let erased: ErasedPwBox = serde_json::from_str(&PWBOX).unwrap();
-        let pwbox = eraser.restore(&erased).unwrap();
+        let erased_box: ErasedPwBox = serde_json::from_str(&PWBOX).unwrap();
+        let pwbox = eraser.restore(&erased_box).unwrap();
         assert_eq!(message, &*pwbox.open(PASSWORD).unwrap());
     }
 }

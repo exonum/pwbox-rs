@@ -21,9 +21,11 @@ use chacha20poly1305::{
     ChaCha20Poly1305,
 };
 use scrypt::{scrypt, ScryptParams as Params};
-use serde_derive::*;
+use serde::{Deserialize, Serialize};
 
-use crate::{alloc::Vec, Cipher, CipherOutput, DeriveKey, Eraser, ScryptParams, Suite};
+use crate::{
+    alloc::Vec, Cipher, CipherOutput, DeriveKey, Eraser, MacMismatch, ScryptParams, Suite,
+};
 
 impl Cipher for ChaCha20Poly1305 {
     const KEY_LEN: usize = 32;
@@ -31,7 +33,7 @@ impl Cipher for ChaCha20Poly1305 {
     const MAC_LEN: usize = 16;
 
     fn seal(message: &[u8], nonce: &[u8], key: &[u8]) -> CipherOutput {
-        let mut buffer = Self::new(GenericArray::clone_from_slice(key))
+        let mut buffer = Self::new(GenericArray::from_slice(key))
             .encrypt(GenericArray::from_slice(nonce), message)
             .expect("Cannot encrypt with ChaCha20Poly1305");
         assert!(
@@ -45,22 +47,24 @@ impl Cipher for ChaCha20Poly1305 {
         }
     }
 
+    #[allow(clippy::unknown_clippy_lints, clippy::map_err_ignore)]
+    // ^-- The error returned by `ChaCha20Poly1305` is opaque, so ignoring it doesn't lose info.
     fn open(
         output: &mut [u8],
         encrypted: &CipherOutput,
         nonce: &[u8],
         key: &[u8],
-    ) -> Result<(), ()> {
+    ) -> Result<(), MacMismatch> {
         let mut encryption = Vec::with_capacity(encrypted.ciphertext.len() + Self::MAC_LEN);
         encryption.extend_from_slice(&encrypted.ciphertext);
         encryption.extend_from_slice(&encrypted.mac);
 
-        Self::new(GenericArray::clone_from_slice(key))
+        Self::new(GenericArray::from_slice(key))
             .decrypt(GenericArray::from_slice(nonce), &*encryption)
             .map(|plaintext| {
                 output.copy_from_slice(&plaintext);
             })
-            .map_err(drop)
+            .map_err(|_| MacMismatch)
     }
 }
 
@@ -125,7 +129,7 @@ impl DeriveKey for Scrypt {
 /// # }
 /// ```
 #[derive(Debug)]
-pub enum PureCrypto {}
+pub struct PureCrypto(());
 
 impl Suite for PureCrypto {
     type Cipher = ChaCha20Poly1305;

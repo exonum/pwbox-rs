@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use clear_on_drop::ClearOnDrop;
 use serde::{de::Visitor, Deserializer, Serializer};
-use serde_derive::*;
+use serde::{Deserialize, Serialize};
 use smallvec::{smallvec, SmallVec};
+use zeroize::Zeroize;
 
-use core::{fmt, ops::Deref};
+use core::{convert::TryFrom, fmt, ops::Deref};
 
 /// Expected upper bound on byte buffers created during encryption / decryption.
 const BUFFER_SIZE: usize = 256;
@@ -29,8 +29,6 @@ const BUFFER_SIZE: usize = 256;
 /// The container is zeroed on drop. Internally, it uses [`SmallVec`]; hence,
 /// the data with size <= 256 bytes is stored on stack, which further
 /// reduces possibility of data leakage.
-///
-/// [`SmallVec`]: https://docs.rs/smallvec/0.6.6/smallvec/struct.SmallVec.html
 #[derive(Clone)]
 pub struct SensitiveData(SmallVec<[u8; BUFFER_SIZE]>);
 
@@ -45,8 +43,8 @@ impl SensitiveData {
 }
 
 impl fmt::Debug for SensitiveData {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_tuple("SensitiveData").field(&"_").finish()
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.debug_tuple("SensitiveData").field(&"_").finish()
     }
 }
 
@@ -60,12 +58,11 @@ impl Deref for SensitiveData {
 
 impl Drop for SensitiveData {
     fn drop(&mut self) {
-        let handle = ClearOnDrop::new(&mut self.0);
-        drop(handle); // this is where the bytes are cleared
+        Zeroize::zeroize(self.0.as_mut_slice());
     }
 }
 
-enum LogNTransform {}
+struct LogNTransform;
 
 impl LogNTransform {
     #[allow(clippy::trivially_copy_pass_by_ref)]
@@ -85,15 +82,16 @@ impl LogNTransform {
         impl<'de> Visitor<'de> for Log2Visitor {
             type Value = u8;
 
-            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                f.write_str("a power of two")
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str("a power of two")
             }
 
             fn visit_u64<E: DeError>(self, value: u64) -> Result<Self::Value, E> {
                 if !value.is_power_of_two() {
                     return Err(E::custom("not a power of two"));
                 }
-                Ok(63 - value.leading_zeros() as u8)
+                // `try_from` is infallible: the number of leading zeros is <= 63
+                Ok(63 - u8::try_from(value.leading_zeros()).unwrap())
             }
         }
 
@@ -168,7 +166,7 @@ impl ScryptParams {
 
 #[test]
 fn log2_transform() {
-    use serde_derive::*;
+    use serde::{Deserialize, Serialize};
     use serde_json::{self, Value};
 
     #[derive(Serialize, Deserialize)]

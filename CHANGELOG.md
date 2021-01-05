@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 The project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Make non-instantiated types (such as cryptosuites) to structs.
+- Use a separate error type, `MacMismatch`, instead of `()` in `Cipher::open()`.
+- Update dependencies.
+
 ## 0.3.0 - 2020-03-11
 
 ### Added

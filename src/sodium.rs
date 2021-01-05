@@ -23,9 +23,9 @@ use exonum_sodiumoxide::crypto::{
     },
     secretbox::{self, open_detached, seal_detached, Key, Nonce, Tag},
 };
-use serde_derive::*;
+use serde::{Deserialize, Serialize};
 
-use super::{Cipher, CipherOutput, DeriveKey, Eraser, Suite};
+use crate::{Cipher, CipherOutput, DeriveKey, Eraser, MacMismatch, Suite};
 
 /// `Scrypt` key derivation function parameterized as per libsodium, i.e., via
 /// `opslimit` (computational hardness) and `memlimit` (RAM consumption).
@@ -53,6 +53,8 @@ impl Default for Scrypt {
 
 impl Scrypt {
     /// Returns the "interactive" `scrypt` parameters as defined in libsodium.
+    #[allow(clippy::cast_possible_truncation)]
+    // ^-- conversion is safe; using `try_from` is impossible because of the const context.
     pub const fn interactive() -> Self {
         Scrypt {
             opslimit: OPSLIMIT_INTERACTIVE.0 as u32,
@@ -69,6 +71,8 @@ impl Scrypt {
     }
 
     /// Returns the "sensitive" `scrypt` parameters as defined in libsodium.
+    #[allow(clippy::cast_possible_truncation)]
+    // ^-- conversion is safe; using `try_from` is impossible because of the const context.
     pub const fn sensitive() -> Self {
         Scrypt {
             opslimit: OPSLIMIT_SENSITIVE.0 as u32,
@@ -139,13 +143,18 @@ impl Cipher for XSalsa20Poly1305 {
         }
     }
 
-    fn open(output: &mut [u8], enc: &CipherOutput, nonce: &[u8], key: &[u8]) -> Result<(), ()> {
+    fn open(
+        output: &mut [u8],
+        enc: &CipherOutput,
+        nonce: &[u8],
+        key: &[u8],
+    ) -> Result<(), MacMismatch> {
         let nonce = Nonce::from_slice(nonce).expect("invalid nonce length");
         let key = Key::from_slice(key).expect("invalid key length");
         let mac = Tag::from_slice(&enc.mac).expect("invalid MAC length");
 
         output.copy_from_slice(&enc.ciphertext);
-        open_detached(output, &mac, &nonce, &key)
+        open_detached(output, &mac, &nonce, &key).map_err(|()| MacMismatch)
     }
 }
 
@@ -170,13 +179,18 @@ impl Cipher for ChaCha20Poly1305 {
         }
     }
 
-    fn open(output: &mut [u8], enc: &CipherOutput, nonce: &[u8], key: &[u8]) -> Result<(), ()> {
+    fn open(
+        output: &mut [u8],
+        enc: &CipherOutput,
+        nonce: &[u8],
+        key: &[u8],
+    ) -> Result<(), MacMismatch> {
         let nonce = aead::Nonce::from_slice(nonce).expect("invalid nonce length");
         let key = aead::Key::from_slice(key).expect("invalid key length");
         let mac = aead::Tag::from_slice(&enc.mac).expect("invalid MAC length");
 
         output.copy_from_slice(&enc.ciphertext);
-        aead::open_detached(output, None, &mac, &nonce, &key)
+        aead::open_detached(output, None, &mac, &nonce, &key).map_err(|()| MacMismatch)
     }
 }
 
@@ -197,7 +211,7 @@ impl Cipher for ChaCha20Poly1305 {
 ///
 /// See crate-level docs for the example of usage.
 #[derive(Debug)]
-pub enum Sodium {}
+pub struct Sodium(());
 
 impl Suite for Sodium {
     type Cipher = XSalsa20Poly1305;

@@ -14,8 +14,7 @@
 
 use hex_buffer_serde::{Hex as _Hex, HexForm};
 use rand_core::{CryptoRng, RngCore};
-use serde::{de::DeserializeOwned, Serialize};
-use serde_derive::*;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{self, Error as JsonError, Value as JsonValue};
 
 use core::{any::TypeId, fmt};
@@ -171,8 +170,9 @@ pub struct Eraser {
 }
 
 impl fmt::Debug for Eraser {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Eraser")
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Eraser")
             .field("ciphers", &self.ciphers.keys().collect::<Vec<_>>())
             .field("kdfs", &self.kdfs.keys().collect::<Vec<_>>())
             .finish()
@@ -207,7 +207,7 @@ impl Eraser {
         C: Cipher,
     {
         let factory = || {
-            let cipher_object: CipherObject<C> = Default::default();
+            let cipher_object = CipherObject::<C>::default();
             Box::new(cipher_object) as Box<dyn ObjectSafeCipher>
         };
         let old_cipher = self
@@ -379,7 +379,7 @@ pub trait Suite {
     /// Initializes a `PwBoxBuilder` with the recommended cipher and KDF.
     fn build_box<R: RngCore + CryptoRng>(
         rng: &mut R,
-    ) -> PwBoxBuilder<Self::DeriveKey, Self::Cipher> {
+    ) -> PwBoxBuilder<'_, Self::DeriveKey, Self::Cipher> {
         PwBoxBuilder::new(rng)
     }
 
@@ -412,67 +412,67 @@ where
     // All corrupted input needs to pass through `Eraser` / `ErasedPwBox`, so we test them.
     let mut eraser = Eraser::new();
     let eraser = eraser.add_cipher::<C>("cipher").add_kdf::<K>("kdf");
-    let mut erased = eraser.erase(&pwbox).unwrap();
+    let mut erased_box = eraser.erase(&pwbox).unwrap();
 
     // Lengthen MAC.
-    erased.encrypted.mac.push(b'!');
+    erased_box.encrypted.mac.push(b'!');
     assert_matches!(
-        eraser.restore(&erased).map(drop).unwrap_err(),
+        eraser.restore(&erased_box).map(drop).unwrap_err(),
         Error::MacLen
     );
     // Shorten MAC.
-    erased.encrypted.mac.pop();
-    if let Some(last_byte) = erased.encrypted.mac.pop() {
+    erased_box.encrypted.mac.pop();
+    if let Some(last_byte) = erased_box.encrypted.mac.pop() {
         assert_matches!(
-            eraser.restore(&erased).map(drop).unwrap_err(),
+            eraser.restore(&erased_box).map(drop).unwrap_err(),
             Error::MacLen
         );
-        erased.encrypted.mac.push(last_byte);
+        erased_box.encrypted.mac.push(last_byte);
     }
 
     // Lengthen salt.
-    erased.kdf_params.salt.push(b'!');
+    erased_box.kdf_params.salt.push(b'!');
     assert_matches!(
-        eraser.restore(&erased).map(drop).unwrap_err(),
+        eraser.restore(&erased_box).map(drop).unwrap_err(),
         Error::SaltLen
     );
     // Shorten salt.
-    erased.kdf_params.salt.pop();
-    if let Some(last_byte) = erased.kdf_params.salt.pop() {
+    erased_box.kdf_params.salt.pop();
+    if let Some(last_byte) = erased_box.kdf_params.salt.pop() {
         assert_matches!(
-            eraser.restore(&erased).map(drop).unwrap_err(),
+            eraser.restore(&erased_box).map(drop).unwrap_err(),
             Error::SaltLen
         );
-        erased.kdf_params.salt.push(last_byte);
+        erased_box.kdf_params.salt.push(last_byte);
     }
 
     // Lengthen nonce.
-    erased.cipher_params.iv.push(b'!');
+    erased_box.cipher_params.iv.push(b'!');
     assert_matches!(
-        eraser.restore(&erased).map(drop).unwrap_err(),
+        eraser.restore(&erased_box).map(drop).unwrap_err(),
         Error::NonceLen
     );
     // Shorten nonce.
-    erased.cipher_params.iv.pop();
-    if let Some(last_byte) = erased.cipher_params.iv.pop() {
+    erased_box.cipher_params.iv.pop();
+    if let Some(last_byte) = erased_box.cipher_params.iv.pop() {
         assert_matches!(
-            eraser.restore(&erased).map(drop).unwrap_err(),
+            eraser.restore(&erased_box).map(drop).unwrap_err(),
             Error::NonceLen
         );
-        erased.cipher_params.iv.push(last_byte);
+        erased_box.cipher_params.iv.push(last_byte);
     }
 
     // Mutate MAC.
-    erased.encrypted.mac[0] ^= 1;
-    let restored = eraser.restore(&erased).unwrap();
+    erased_box.encrypted.mac[0] ^= 1;
+    let restored = eraser.restore(&erased_box).unwrap();
     assert_matches!(restored.open(PASSWORD).unwrap_err(), Error::MacMismatch);
-    erased.encrypted.mac[0] ^= 1;
+    erased_box.encrypted.mac[0] ^= 1;
 
     // Mutate ciphertext.
-    erased.encrypted.ciphertext[1] ^= 128;
-    let restored = eraser.restore(&erased).unwrap();
+    erased_box.encrypted.ciphertext[1] ^= 128;
+    let restored = eraser.restore(&erased_box).unwrap();
     assert_matches!(restored.open(PASSWORD).unwrap_err(), Error::MacMismatch);
-    erased.encrypted.ciphertext[1] ^= 128;
+    erased_box.encrypted.ciphertext[1] ^= 128;
 
     // Mutate password.
     let mut password = PASSWORD.as_bytes().to_vec();
@@ -497,8 +497,8 @@ fn erase_pwbox() {
     let pwbox =
         PwBox::<Scrypt, XSalsa20Poly1305>::new(&mut thread_rng(), PASSWORD, MESSAGE).unwrap();
 
-    let erased = eraser.erase(&pwbox).unwrap();
-    let pwbox_copy = eraser.restore(&erased).unwrap();
+    let erased_box = eraser.erase(&pwbox).unwrap();
+    let pwbox_copy = eraser.restore(&erased_box).unwrap();
     assert_eq!(MESSAGE.len(), pwbox_copy.len());
     assert_eq!(MESSAGE, &*pwbox_copy.open(PASSWORD).unwrap());
 }
