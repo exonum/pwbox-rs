@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["pwbox"] = [{"text":"impl Serialize for ErasedPwBox","synthetic":false,"types":[]},{"text":"impl Serialize for CipherOutput","synthetic":false,"types":[]},{"text":"impl Serialize for ScryptParams","synthetic":false,"types":[]},{"text":"impl Serialize for Scrypt","synthetic":false,"types":[]},{"text":"impl Serialize for Scrypt","synthetic":false,"types":[]},{"text":"impl Serialize for Scrypt","synthetic":false,"types":[]},{"text":"impl Serialize for ScryptCompat","synthetic":false,"types":[]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

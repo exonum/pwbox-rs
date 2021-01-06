@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["pwbox"] = [{"text":"impl Copy for ScryptParams","synthetic":false,"types":[]},{"text":"impl Copy for Scrypt","synthetic":false,"types":[]},{"text":"impl Copy for Scrypt","synthetic":false,"types":[]},{"text":"impl Copy for Aes128Gcm","synthetic":false,"types":[]},{"text":"impl Copy for Scrypt","synthetic":false,"types":[]},{"text":"impl Copy for ScryptCompat","synthetic":false,"types":[]},{"text":"impl Copy for XSalsa20Poly1305","synthetic":false,"types":[]},{"text":"impl Copy for ChaCha20Poly1305","synthetic":false,"types":[]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

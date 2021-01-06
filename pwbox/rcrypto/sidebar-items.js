@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Aes128Ctr","AES-128 cipher in CTR mode."],["Aes128Gcm","AES-128 cipher in GCM mode."],["Keccak256","MAC construction based on Keccak256 hash function."],["RustCrypto","Suite for password-based encryption provided by `rust-crypto`."],["Scrypt","RustCrypto wrapper around scrypt."]]});
