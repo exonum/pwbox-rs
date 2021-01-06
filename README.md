@@ -1,6 +1,6 @@
 # Modular password-based encryption for Rust
 
-[![Travis Build Status](https://img.shields.io/travis/com/exonum/pwbox-rs/master.svg?label=Linux%20Build)](https://travis-ci.com/exonum/pwbox-rs) 
+![Rust](https://github.com/exonum/pwbox-rs/workflows/Rust/badge.svg?branch=master)
 [![License: Apache-2.0](https://img.shields.io/github/license/exonum/pwbox-rs.svg)](https://github.com/exonum/pwbox-rs/blob/master/LICENSE)
 ![rust 1.44.0+ required](https://img.shields.io/badge/rust-1.44.0+-blue.svg?label=Required%20Rust)
 
@@ -21,7 +21,7 @@ Add this to your `Crate.toml`:
 
 ```toml
 [dependencies]
-pwbox = "0.3.0"
+pwbox = "0.4.0"
 ``` 
 
 See crate documentation for more details how to use the crate.
