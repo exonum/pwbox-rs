@@ -21,7 +21,6 @@ jobs:
 
       - name: Install Sodium packages
         run: |
-          sudo -E apt-add-repository -y 'ppa:fsgmhoward/shadowsocks-libev'
           sudo apt-get update
           sudo apt-get install -y --no-install-suggests --no-install-recommends libsodium-dev
 
@@ -96,7 +95,6 @@ jobs:
 
       - name: Install Sodium packages
         run: |
-          sudo -E apt-add-repository -y 'ppa:fsgmhoward/shadowsocks-libev'
           sudo apt-get update
           sudo apt-get install -y --no-install-suggests --no-install-recommends libsodium-dev
 
