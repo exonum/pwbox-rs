@@ -8,9 +8,9 @@ on:
 
 env:
   # Minimum supported Rust version.
-  msrv: 1.44.0
+  msrv: 1.55.0
   # Nightly Rust toolchain for no-std build.
-  nightly: nightly-2020-10-24
+  nightly: nightly-2021-09-09
 
 jobs:
   build:

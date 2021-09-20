@@ -20,7 +20,7 @@ use chacha20poly1305::{
     aead::{generic_array::GenericArray, Aead, NewAead},
     ChaCha20Poly1305,
 };
-use scrypt::{scrypt, ScryptParams as Params};
+use scrypt::{scrypt, Params};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -47,7 +47,7 @@ impl Cipher for ChaCha20Poly1305 {
         }
     }
 
-    #[allow(clippy::unknown_clippy_lints, clippy::map_err_ignore)]
+    #[allow(clippy::map_err_ignore)]
     // ^-- The error returned by `ChaCha20Poly1305` is opaque, so ignoring it doesn't lose info.
     fn open(
         output: &mut [u8],
