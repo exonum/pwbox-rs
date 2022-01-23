@@ -29,7 +29,7 @@ serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 hex-buffer-serde = { version = "0.3", features = ["const_len"] }
 
 # crypto backends
-exonum_sodiumoxide = { version = ">=0.0.21, <=0.0.23", optional = true }
+exonum_sodiumoxide = { version = ">=0.0.21, <=0.0.24", optional = true }
 rust-crypto = { version = "0.2.36", optional = true }
 chacha20poly1305 = { version = "0.9", optional = true }
 scrypt = { version = "0.8", optional = true, default-features = false }
