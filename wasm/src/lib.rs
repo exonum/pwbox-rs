@@ -1,5 +1,5 @@
 #![no_std]
-
+#![allow(clippy::unused_unit)]
 extern crate alloc;
 
 use rand_core::{CryptoRng, RngCore};
