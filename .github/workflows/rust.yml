@@ -8,9 +8,9 @@ on:
 
 env:
   # Minimum supported Rust version.
-  msrv: 1.44.0
+  msrv: 1.55.0
   # Nightly Rust toolchain for no-std build.
-  nightly: nightly-2020-10-24
+  nightly: nightly-2022-01-21
 
 jobs:
   build:
@@ -21,7 +21,6 @@ jobs:
 
       - name: Install Sodium packages
         run: |
-          sudo -E apt-add-repository -y 'ppa:fsgmhoward/shadowsocks-libev'
           sudo apt-get update
           sudo apt-get install -y --no-install-suggests --no-install-recommends libsodium-dev
 
@@ -96,7 +95,6 @@ jobs:
 
       - name: Install Sodium packages
         run: |
-          sudo -E apt-add-repository -y 'ppa:fsgmhoward/shadowsocks-libev'
           sudo apt-get update
           sudo apt-get install -y --no-install-suggests --no-install-recommends libsodium-dev
 
@@ -167,7 +165,6 @@ jobs:
 
       - name: Install Sodium packages
         run: |
-          sudo -E apt-add-repository -y 'ppa:fsgmhoward/shadowsocks-libev'
           sudo apt-get update
           sudo apt-get install -y --no-install-suggests --no-install-recommends libsodium-dev
 

@@ -303,7 +303,7 @@ mod tests {
         let eraser = eraser.add_suite::<RustCrypto>();
 
         let message = hex::decode(MESSAGE_HEX).unwrap();
-        let erased_box: ErasedPwBox = serde_json::from_str(&PWBOX).unwrap();
+        let erased_box: ErasedPwBox = serde_json::from_str(PWBOX).unwrap();
         let pwbox = eraser.restore(&erased_box).unwrap();
         assert_eq!(message, &*pwbox.open(PASSWORD).unwrap());
     }

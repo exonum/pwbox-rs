@@ -80,7 +80,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![doc(html_root_url = "https://docs.rs/pwbox/0.4.0")]
+#![doc(html_root_url = "https://docs.rs/pwbox/0.5.0")]
 #![warn(missing_docs, missing_debug_implementations)]
 #![warn(clippy::all, clippy::pedantic)]
 #![allow(

@@ -2,7 +2,7 @@
 
 ![Rust](https://github.com/exonum/pwbox-rs/workflows/Rust/badge.svg?branch=master)
 [![License: Apache-2.0](https://img.shields.io/github/license/exonum/pwbox-rs.svg)](https://github.com/exonum/pwbox-rs/blob/master/LICENSE)
-![rust 1.44.0+ required](https://img.shields.io/badge/rust-1.44.0+-blue.svg?label=Required%20Rust)
+![rust 1.55.0+ required](https://img.shields.io/badge/rust-1.55.0+-blue.svg?label=Required%20Rust)
 
 **Documentation:** [![crate docs (master)](https://img.shields.io/badge/master-yellow.svg?label=docs)](https://exonum.github.io/pwbox-rs/pwbox/)
 
@@ -21,7 +21,7 @@ Add this to your `Crate.toml`:
 
 ```toml
 [dependencies]
-pwbox = "0.4.0"
+pwbox = "0.5.0"
 ``` 
 
 See crate documentation for more details how to use the crate.

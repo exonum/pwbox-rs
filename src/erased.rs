@@ -323,12 +323,12 @@ impl Eraser {
         let pwbox = &pwbox.inner;
         Ok(ErasedPwBox {
             encrypted: pwbox.encrypted.clone(),
-            kdf: kdf.to_owned(),
+            kdf: kdf.clone(),
             kdf_params: KdfParams {
                 salt: pwbox.salt.clone(),
                 inner: kdf_params,
             },
-            cipher: cipher.to_owned(),
+            cipher: cipher.clone(),
             cipher_params: CipherParams {
                 iv: pwbox.nonce.clone(),
             },

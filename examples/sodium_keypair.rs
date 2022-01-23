@@ -28,6 +28,8 @@ use std::borrow::Cow;
 enum PublicKeyHex {}
 
 impl Hex<PublicKey> for PublicKeyHex {
+    type Error = String;
+
     fn create_bytes(value: &PublicKey) -> Cow<'_, [u8]> {
         Cow::Borrowed(&value.0)
     }

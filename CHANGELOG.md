@@ -5,6 +5,13 @@ The project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## 0.5.0 - 2021-09-20
+
+### Changed
+
+- Updated dependencies and bump MSRV up to 1.55.
+- Bumped exonum_sodiumoxide dependency up to 0.0.24.
+
 ## 0.4.0 - 2021-01-05
 
 ### Changed

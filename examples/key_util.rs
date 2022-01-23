@@ -132,12 +132,12 @@ impl<'a> PointerComponent<'a> {
     }
 }
 
+#[derive(Debug, StructOpt)]
 #[structopt(
     name = "Simple key util",
     after_help = HELP,
     set_term_width = 80
 )]
-#[derive(Debug, StructOpt)]
 enum Args {
     /// Encrypts data with a passphrase
     #[structopt(name = "enc")]
